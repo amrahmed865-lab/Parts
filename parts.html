@@ -1,6 +1,3 @@
-لتحقيق طلبك وجعل التذكير مرناً ليدعم (الدقائق، الساعات، والأيام)، قمت بتعديل الكود لإضافة **قائمة منسدلة (Dropdown)** تتيح لك اختيار وحدة الوقت عند تسجيل القطعة. كما قمت بتعديل كل الدوال المسؤولة عن حساب الوقت والإشعارات لتدعم هذا التغيير.
-إليك الكود كاملاً بعد التعديل، يمكنك نسخه واستبداله بالملف الحالي:
-```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -480,6 +477,9 @@ db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
   checkReminders();
 });
 
+// تشغيل فحص التذكيرات كل 60 ثانية (تلقائياً)
+setInterval(checkReminders, 60000);
+
 const REMINDER_SENT_KEY = "parts_reminder_sent";
 
 function getDeadline(p) {
@@ -507,6 +507,7 @@ async function checkReminders() {
     const isOverdue = new Date() > deadline;
     if (!isOverdue) continue;
 
+    // لتفادي إرسال إشعار متكرر لنفس القطعة في نفس اليوم
     if (sentToday[part.id] === today) continue;
 
     const created = part.createdAt?.toDate ? part.createdAt.toDate() : new Date(part.createdAt);
@@ -756,5 +757,3 @@ function showToast(msg, isError = false) {
 </script>
 </body>
 </html>
-
-```
