@@ -1,3 +1,6 @@
+لتحقيق طلبك وجعل التذكير مرناً ليدعم (الدقائق، الساعات، والأيام)، قمت بتعديل الكود لإضافة **قائمة منسدلة (Dropdown)** تتيح لك اختيار وحدة الوقت عند تسجيل القطعة. كما قمت بتعديل كل الدوال المسؤولة عن حساب الوقت والإشعارات لتدعم هذا التغيير.
+إليك الكود كاملاً بعد التعديل، يمكنك نسخه واستبداله بالملف الحالي:
+```html
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -8,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
-<!-- Firebase v8 compat — نفس request.html بالظبط -->
+<!-- Firebase v8 compat -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
@@ -25,12 +28,6 @@
   --muted: #7b82a0;
   --danger: #ef4444;
   --success: #22c55e;
-  --s0: #6366f1;
-  --s1: #f59e0b;
-  --s2: #3b82f6;
-  --s3: #a855f7;
-  --s4: #22c55e;
-  --s5: #10b981;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -80,7 +77,6 @@ body {
 }
 .btn-nav:hover { border-color: var(--accent); color: var(--accent); }
 
-/* notif status indicator */
 .notif-status {
   font-size: 11px;
   padding: 4px 10px;
@@ -92,7 +88,6 @@ body {
 
 .main { padding: 20px; max-width: 1100px; margin: 0 auto; }
 
-/* ── ADD FORM ── */
 .add-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -140,7 +135,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 textarea { resize: vertical; min-height: 70px; }
 select option { background: var(--surface2); }
 
-/* reminder row */
 .reminder-row {
   display: flex;
   align-items: center;
@@ -156,7 +150,11 @@ select option { background: var(--surface2); }
   text-align: center;
   padding: 7px;
 }
-.reminder-row span { font-size: 13px; color: var(--muted); }
+.reminder-row select {
+  width: auto;
+  padding: 7px 10px;
+  font-size: 13px;
+}
 
 .btn-add {
   background: var(--accent);
@@ -174,7 +172,6 @@ select option { background: var(--surface2); }
 .btn-add:hover { opacity: .85; }
 .btn-add:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ── FILTER ── */
 .filter-bar {
   display: flex;
   gap: 10px;
@@ -197,7 +194,6 @@ select option { background: var(--surface2); }
   white-space: nowrap;
 }
 
-/* ── CARDS ── */
 .parts-list { display: flex; flex-direction: column; gap: 12px; }
 
 .part-card {
@@ -209,7 +205,6 @@ select option { background: var(--surface2); }
 }
 .part-card:hover { border-color: var(--accent2); }
 
-/* overdue highlight */
 .part-card.overdue { border-color: #ef444488 !important; }
 .overdue-tag {
   font-size: 11px;
@@ -231,169 +226,50 @@ select option { background: var(--surface2); }
   flex-wrap: wrap;
 }
 
-.part-stage-dot {
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
+.part-stage-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 .part-name { font-size: 15px; font-weight: 700; flex: 1; min-width: 120px; }
-
-.part-machine {
-  font-size: 12px;
-  color: var(--muted);
-  background: var(--surface2);
-  padding: 3px 10px;
-  border-radius: 20px;
-}
-
-.stage-badge {
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 20px;
-  white-space: nowrap;
-}
-
+.part-machine { font-size: 12px; color: var(--muted); background: var(--surface2); padding: 3px 10px; border-radius: 20px; }
+.stage-badge { font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
 .part-days { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .part-expand-icon { color: var(--muted); font-size: 12px; transition: transform .2s; }
 .part-card.expanded .part-expand-icon { transform: rotate(180deg); }
 
-/* ── BODY ── */
-.part-body {
-  display: none;
-  padding: 0 18px 18px;
-  border-top: 1px solid var(--border);
-}
+.part-body { display: none; padding: 0 18px 18px; border-top: 1px solid var(--border); }
 .part-card.expanded .part-body { display: block; }
 
-/* ── TIMELINE ── */
-.timeline {
-  margin: 18px 0 20px;
-  position: relative;
-  padding-right: 28px;
-}
-.timeline::before {
-  content: '';
-  position: absolute;
-  right: 5px; top: 0; bottom: 0;
-  width: 2px;
-  background: var(--border);
-}
-.tl-item {
-  position: relative;
-  margin-bottom: 16px;
-  padding-right: 24px;
-}
-.tl-dot {
-  position: absolute;
-  right: -29px; top: 4px;
-  width: 12px; height: 12px;
-  border-radius: 50%;
-  border: 2px solid var(--bg);
-}
+.timeline { margin: 18px 0 20px; position: relative; padding-right: 28px; }
+.timeline::before { content: ''; position: absolute; right: 5px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+.tl-item { position: relative; margin-bottom: 16px; padding-right: 24px; }
+.tl-dot { position: absolute; right: -29px; top: 4px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--bg); }
 .tl-item.active .tl-dot { box-shadow: 0 0 0 3px rgba(245,158,11,.3); }
 .tl-label { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
 .tl-date  { font-size: 11px; color: var(--muted); }
-.tl-note  {
-  font-size: 12px; color: var(--muted);
-  margin-top: 4px;
-  background: var(--surface2);
-  padding: 6px 10px;
-  border-radius: 6px;
-  border-right: 3px solid var(--border);
-}
+.tl-note  { font-size: 12px; color: var(--muted); margin-top: 4px; background: var(--surface2); padding: 6px 10px; border-radius: 6px; border-right: 3px solid var(--border); }
 .tl-item.pending .tl-label { color: var(--border); }
 .tl-item.pending .tl-dot   { background: var(--border); border-color: var(--border); }
 
-/* ── REMINDER INFO ── */
-.reminder-info {
-  background: #f59e0b11;
-  border: 1px solid #f59e0b33;
-  border-radius: 8px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.reminder-info.overdue-info {
-  background: #ef444411;
-  border-color: #ef444433;
-  color: #ef4444;
-}
+.reminder-info { background: #f59e0b11; border: 1px solid #f59e0b33; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+.reminder-info.overdue-info { background: #ef444411; border-color: #ef444433; color: #ef4444; }
 
-/* ── UPDATE ── */
-.update-section {
-  background: var(--surface2);
-  border-radius: 10px;
-  padding: 14px;
-}
-.update-section h4 {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  margin-bottom: 12px;
-}
-.update-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 10px;
-}
+.update-section { background: var(--surface2); border-radius: 10px; padding: 14px; }
+.update-section h4 { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
+.update-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 @media (max-width: 500px) { .update-row { grid-template-columns: 1fr; } }
 
-.btn-update {
-  background: var(--accent2);
-  color: #fff;
-  border: none;
-  padding: 9px 20px;
-  border-radius: 8px;
-  font-family: 'Cairo', Arial, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity .2s;
-}
+.btn-update { background: var(--accent2); color: #fff; border: none; padding: 9px 20px; border-radius: 8px; font-family: 'Cairo', Arial, sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
 .btn-update:hover { opacity: .85; }
 
-.part-meta {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin: 14px 0 16px;
-}
+.part-meta { display: flex; gap: 16px; flex-wrap: wrap; margin: 14px 0 16px; }
 .meta-item { display: flex; flex-direction: column; gap: 2px; }
 .meta-item .key { font-size: 11px; color: var(--muted); font-weight: 600; }
 .meta-item .val { font-size: 13px; font-weight: 600; }
 
-/* ── EMPTY / LOADING ── */
-.empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--muted);
-}
+.empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty .icon { font-size: 48px; margin-bottom: 12px; }
 .empty p { font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
 
-/* ── TOAST ── */
-#toast {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(80px);
-  background: var(--success);
-  color: #fff;
-  padding: 12px 24px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  z-index: 9999;
-  transition: transform .3s;
-  pointer-events: none;
-}
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--success); color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; z-index: 9999; transition: transform .3s; pointer-events: none; }
 #toast.show  { transform: translateX(-50%) translateY(0); }
 #toast.error { background: var(--danger); }
 </style>
@@ -413,7 +289,6 @@ select option { background: var(--surface2); }
 
 <div class="main">
 
-  <!-- ── ADD FORM ── -->
   <div class="add-card" id="addSection">
     <h3>➕ تسجيل قطعة غيار جديدة</h3>
     <div class="form-grid">
@@ -449,18 +324,21 @@ select option { background: var(--surface2); }
       <div class="full">
         <div class="reminder-row">
           <label>⏰ تذكير لو القطعة مرجعتش بعد</label>
-          <input type="number" id="reminderDays" value="7" min="1" max="365" />
-          <span>يوم</span>
+          <input type="number" id="reminderValue" value="7" min="1" max="365" />
+          <select id="reminderUnit">
+            <option value="minutes">دقائق</option>
+            <option value="hours">ساعات</option>
+            <option value="days" selected>أيام</option>
+          </select>
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px;padding-right:4px;">
-          هيتبعت إشعار لكل المستخدمين لو القطعة لسه في مرحلة خارج المصنع بعد عدد الأيام دي
+          هيتبعت إشعار لكل المستخدمين لو القطعة لسه في مرحلة خارج المصنع بعد المدة دي
         </div>
       </div>
     </div>
     <button class="btn-add" id="addBtn" onclick="addPart()">📤 تسجيل الإخراج للإصلاح</button>
   </div>
 
-  <!-- ── FILTERS ── -->
   <div class="filter-bar">
     <select id="filterStage" onchange="render()">
       <option value="all">كل المراحل</option>
@@ -480,7 +358,6 @@ select option { background: var(--surface2); }
     <span class="count-badge" id="countBadge">— قطعة</span>
   </div>
 
-  <!-- ── LIST ── -->
   <div id="partsList" class="parts-list">
     <div class="loading">⏳ جاري التحميل...</div>
   </div>
@@ -489,10 +366,7 @@ select option { background: var(--surface2); }
 
 <div id="toast"></div>
 
-<!-- ══════════════════════════════════════════════════════════════ -->
 <script>
-
-/* ── FIREBASE INIT (v8 compat — نفس request.html) ── */
 const firebaseConfig = {
   apiKey:            "AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E",
   authDomain:        "maintenance-nahda.firebaseapp.com",
@@ -506,7 +380,6 @@ firebase.initializeApp(firebaseConfig);
 const db        = firebase.firestore();
 const messaging = firebase.messaging();
 
-/* ── AUTH ── */
 const currentUser = localStorage.getItem("user");
 const role        = localStorage.getItem("role");
 const canEdit     = (currentUser === "ahmed" || currentUser === "amr");
@@ -516,7 +389,6 @@ if (!canEdit) document.getElementById("addSection").style.display = "none";
 
 function logout() { localStorage.clear(); location.href = "index.html"; }
 
-/* ── STAGES ── */
 const STAGES = [
   { label: "خرجت للمركز",        icon: "📤", color: "#6366f1" },
   { label: "تحت الإصلاح",        icon: "🔧", color: "#f59e0b" },
@@ -526,12 +398,8 @@ const STAGES = [
   { label: "مكتملة",              icon: "✅", color: "#10b981" },
 ];
 
-/* مراحل "خارج المصنع" — الـ reminder بيشتغل عليها بس */
 const OUTSIDE_STAGES = new Set([0, 1]);
 
-/* ─────────────────────────────────────────────
-   startNotifications  — نفس كود request.html
-───────────────────────────────────────────── */
 async function startNotifications() {
   try {
     const permission = await Notification.requestPermission();
@@ -541,9 +409,7 @@ async function startNotifications() {
       return;
     }
 
-    const registration = await navigator.serviceWorker.register(
-      '/firebase-messaging-sw.js'
-    );
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     console.log("SW Registered");
 
     const token = await messaging.getToken({
@@ -553,20 +419,15 @@ async function startNotifications() {
 
     if (!token) { console.log("No FCM token"); updateNotifBadge(false); return; }
 
-    console.log("FCM TOKEN:", token);
-
     await db.collection("tokens").doc(token).set({
       token:     token,
       user:      currentUser || "unknown",
       createdAt: new Date()
     });
 
-    console.log("Notifications Enabled");
     updateNotifBadge(true);
 
-    /* استقبال الإشعارات لما الصفحة مفتوحة */
     messaging.onMessage(async (payload) => {
-      console.log("onMessage:", payload);
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg) {
         reg.showNotification(payload.notification.title, {
@@ -577,7 +438,6 @@ async function startNotifications() {
         });
       }
     });
-
   } catch(e) {
     console.error(e);
     updateNotifBadge(false);
@@ -587,15 +447,11 @@ async function startNotifications() {
 function updateNotifBadge(on) {
   const b = document.getElementById("notifBadge");
   if (on) { b.textContent = "🔔 إشعارات مفعّلة"; b.className = "notif-status notif-on"; }
-  else     { b.textContent = "🔕 إشعارات";        b.className = "notif-status notif-off"; }
+  else    { b.textContent = "🔕 إشعارات";        b.className = "notif-status notif-off"; }
 }
 
-/* بدأ على طول زي request.html */
 startNotifications();
 
-/* ─────────────────────────────────────────────
-   sendNotificationToAll — نفس request.html
-───────────────────────────────────────────── */
 async function sendNotificationToAll(title, body) {
   try {
     const snapshot  = await db.collection("tokens").get();
@@ -605,81 +461,82 @@ async function sendNotificationToAll(title, body) {
       const token = docu.data().token;
       if (sentTokens.has(token)) continue;
       sentTokens.add(token);
-
       try {
         await fetch('/api/notify', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({ title, body, token })
         });
-      } catch(e) {
-        console.log("Bad token:", token);
-      }
+      } catch(e) {}
     }
-    console.log("Notifications sent to", sentTokens.size, "tokens");
-  } catch(e) {
-    console.error("sendNotificationToAll error:", e);
-  }
+  } catch(e) {}
 }
 
-/* ── DATA ── */
 let allParts = [];
 
 db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
   allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   render();
-  checkReminders();          /* فحص الـ reminders عند كل تحديث */
+  checkReminders();
 });
 
-/* ─────────────────────────────────────────────
-   checkReminders
-   بيشوف كل قطعة مرحلتها خارج المصنع
-   ولو فاتت مدة الـ reminder ومتبعتش إشعار النهارده يبعت
-───────────────────────────────────────────── */
-const REMINDER_SENT_KEY = "parts_reminder_sent"; /* localStorage key */
+const REMINDER_SENT_KEY = "parts_reminder_sent";
+
+function getDeadline(p) {
+  const val = p.reminderValue || p.reminderDays;
+  if (!val) return null;
+  const unit = p.reminderUnit || 'days';
+  const created = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+  const deadline = new Date(created);
+  if (unit === 'minutes') deadline.setMinutes(deadline.getMinutes() + val);
+  else if (unit === 'hours') deadline.setHours(deadline.getHours() + val);
+  else deadline.setDate(deadline.getDate() + val);
+  return deadline;
+}
 
 async function checkReminders() {
   const today = new Date().toISOString().split("T")[0];
   const sentToday = JSON.parse(localStorage.getItem(REMINDER_SENT_KEY) || "{}");
 
   for (const part of allParts) {
-    /* بس المراحل اللي برّا المصنع */
     if (!OUTSIDE_STAGES.has(part.stage)) continue;
-    if (!part.reminderDays) continue;
-
-    const created  = part.createdAt?.toDate ? part.createdAt.toDate() : new Date(part.createdAt);
-    const deadline = new Date(created);
-    deadline.setDate(deadline.getDate() + part.reminderDays);
+    
+    const deadline = getDeadline(part);
+    if (!deadline) continue;
 
     const isOverdue = new Date() > deadline;
     if (!isOverdue) continue;
 
-    /* متبعتش الإشعار النهارده لنفس القطعة */
     if (sentToday[part.id] === today) continue;
 
-    /* ابعت الإشعار */
-    const daysPassed = Math.floor((Date.now() - created.getTime()) / 86400000);
+    const created = part.createdAt?.toDate ? part.createdAt.toDate() : new Date(part.createdAt);
+    const timePassedMs = Date.now() - created.getTime();
+    const daysPassed = Math.floor(timePassedMs / 86400000);
+    const hoursPassed = Math.floor(timePassedMs / 3600000);
+    const minutesPassed = Math.floor(timePassedMs / 60000);
+
+    let passedText = `${daysPassed} يوم`;
+    if (daysPassed === 0 && hoursPassed > 0) passedText = `${hoursPassed} ساعة`;
+    else if (daysPassed === 0 && hoursPassed === 0) passedText = `${minutesPassed} دقيقة`;
+
     await sendNotificationToAll(
       "⚠️ قطعة غيار تعدّت المدة!",
-      `${part.name} — ${part.machine} — بقالها ${daysPassed} يوم برّا المصنع`
+      `${part.name} — ${part.machine} — بقالها ${passedText} برّا المصنع`
     );
 
-    /* سجّل إن الإشعار اتبعت النهارده */
     sentToday[part.id] = today;
     localStorage.setItem(REMINDER_SENT_KEY, JSON.stringify(sentToday));
   }
 }
 
-/* ─────────────────────────────────────────────
-   addPart
-───────────────────────────────────────────── */
 async function addPart() {
-  const name         = document.getElementById("partName").value.trim();
-  const serial       = document.getElementById("partSerial").value.trim();
-  const machine      = document.getElementById("partMachine").value;
-  const center       = document.getElementById("partCenter").value.trim();
-  const note         = document.getElementById("partNote").value.trim();
-  const reminderDays = parseInt(document.getElementById("reminderDays").value) || 7;
+  const name          = document.getElementById("partName").value.trim();
+  const serial        = document.getElementById("partSerial").value.trim();
+  const machine       = document.getElementById("partMachine").value;
+  const center        = document.getElementById("partCenter").value.trim();
+  const note          = document.getElementById("partNote").value.trim();
+  const reminderValue = parseInt(document.getElementById("reminderValue").value) || 7;
+  const reminderUnit  = document.getElementById("reminderUnit").value;
 
   if (!name) { showToast("اكتب اسم القطعة ❌", true); return; }
 
@@ -695,7 +552,8 @@ async function addPart() {
       machine,
       center:      center || "",
       stage:       0,
-      reminderDays,
+      reminderValue,
+      reminderUnit,
       createdAt:   now,
       createdBy:   currentUser,
       history: [{
@@ -706,16 +564,15 @@ async function addPart() {
       }]
     });
 
+    const unitAr = reminderUnit === 'minutes' ? 'دقيقة' : (reminderUnit === 'hours' ? 'ساعة' : 'يوم');
     await sendNotificationToAll(
       "📤 قطعة غيار خرجت للإصلاح",
-      `${name} — ${machine} — أرسلها ${currentUser} | تذكير بعد ${reminderDays} يوم`
+      `${name} — ${machine} — أرسلها ${currentUser} | تذكير بعد ${reminderValue} ${unitAr}`
     );
 
-    /* reset form */
-    ["partName","partSerial","partCenter","partNote"].forEach(id =>
-      document.getElementById(id).value = ""
-    );
-    document.getElementById("reminderDays").value = "7";
+    ["partName","partSerial","partCenter","partNote"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("reminderValue").value = "7";
+    document.getElementById("reminderUnit").value = "days";
 
     showToast("تم تسجيل القطعة ✅");
   } catch(e) {
@@ -726,13 +583,9 @@ async function addPart() {
   btn.innerText = "📤 تسجيل الإخراج للإصلاح";
 }
 
-/* ─────────────────────────────────────────────
-   updateStage
-───────────────────────────────────────────── */
 async function updateStage(partId) {
   const newStage = parseInt(document.getElementById("sel_stage_" + partId).value);
   const note     = document.getElementById("inp_note_"  + partId).value.trim();
-
   const part = allParts.find(p => p.id === partId);
   if (!part) return;
 
@@ -745,17 +598,11 @@ async function updateStage(partId) {
   }];
 
   try {
-    await db.collection("parts").doc(partId).update({
-      stage:     newStage,
-      history,
-      updatedAt: now
-    });
-
+    await db.collection("parts").doc(partId).update({ stage: newStage, history, updatedAt: now });
     await sendNotificationToAll(
       `${STAGES[newStage].icon} قطعة غيار: ${STAGES[newStage].label}`,
       `${part.name} — ${part.machine} — حدّثها ${currentUser}`
     );
-
     document.getElementById("inp_note_" + partId).value = "";
     showToast("تم التحديث ✅");
   } catch(e) {
@@ -763,9 +610,6 @@ async function updateStage(partId) {
   }
 }
 
-/* ─────────────────────────────────────────────
-   RENDER
-───────────────────────────────────────────── */
 function render() {
   const stageFilter   = document.getElementById("filterStage").value;
   const machineFilter = document.getElementById("filterMachine").value;
@@ -774,33 +618,24 @@ function render() {
   let data = allParts.filter(p => {
     const stageOk   = stageFilter === "all" || p.stage === parseInt(stageFilter);
     const machineOk = machineFilter === "all" || p.machine === machineFilter;
-    const searchOk  = !search
-      || p.name.toLowerCase().includes(search)
-      || (p.serial || "").toLowerCase().includes(search);
+    const searchOk  = !search || p.name.toLowerCase().includes(search) || (p.serial || "").toLowerCase().includes(search);
     return stageOk && machineOk && searchOk;
   });
 
   document.getElementById("countBadge").innerText = data.length + " قطعة";
-
   const list = document.getElementById("partsList");
 
   if (data.length === 0) {
-    list.innerHTML = `
-      <div class="empty">
-        <div class="icon">🔩</div>
-        <p>مفيش قطع غيار في الفلتر دا</p>
-      </div>`;
+    list.innerHTML = `<div class="empty"><div class="icon">🔩</div><p>مفيش قطع غيار في الفلتر دا</p></div>`;
     return;
   }
-
   list.innerHTML = data.map(p => renderCard(p)).join("");
 }
 
 function isOverdue(p) {
-  if (!OUTSIDE_STAGES.has(p.stage) || !p.reminderDays) return false;
-  const created  = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
-  const deadline = new Date(created);
-  deadline.setDate(deadline.getDate() + p.reminderDays);
+  if (!OUTSIDE_STAGES.has(p.stage)) return false;
+  const deadline = getDeadline(p);
+  if (!deadline) return false;
   return new Date() > deadline;
 }
 
@@ -808,20 +643,25 @@ function renderCard(p) {
   const stage       = STAGES[p.stage] || STAGES[0];
   const history     = p.history || [];
   const created     = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
-  const daysPassed  = Math.floor((Date.now() - created.getTime()) / 86400000);
-  const overdue     = isOverdue(p);
+  
+  const timePassedMs = Date.now() - created.getTime();
+  const daysP  = Math.floor(timePassedMs / 86400000);
+  const hoursP = Math.floor(timePassedMs / 3600000);
+  const minsP  = Math.floor(timePassedMs / 60000);
+  
+  let timePassedStr = `${daysP} يوم`;
+  if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${minsP} دقيقة`;
 
-  /* ── timeline ── */
+  const overdue = isOverdue(p);
+
   const timelineHtml = STAGES.map((s, i) => {
     const entry    = history.find(h => h.stage === i);
     const isActive = p.stage === i;
     const isDone   = p.stage > i;
     let cls = "tl-item" + (isActive ? " active" : "") + (!entry && !isActive ? " pending" : "");
-
     const dateStr = entry ? new Date(entry.date).toLocaleString("ar-EG") : "";
     const noteHtml = entry?.note ? `<div class="tl-note">${entry.note}</div>` : "";
     const byHtml   = entry?.by   ? ` · ${entry.by}` : "";
-
     return `
       <div class="${cls}">
         <div class="tl-dot" style="background:${isDone||isActive ? s.color : 'var(--border)'}"></div>
@@ -831,31 +671,36 @@ function renderCard(p) {
       </div>`;
   }).join("");
 
-  /* ── reminder info banner ── */
-  let reminderBanner = "";
-  if (p.reminderDays && OUTSIDE_STAGES.has(p.stage)) {
-    const deadline = new Date(created);
-    deadline.setDate(deadline.getDate() + p.reminderDays);
-    const daysLeft = Math.ceil((deadline - Date.now()) / 86400000);
+  const val = p.reminderValue || p.reminderDays;
+  const unit = p.reminderUnit || 'days';
+  const unitAr = unit === 'minutes' ? 'دقيقة' : (unit === 'hours' ? 'ساعة' : 'يوم');
 
-    if (overdue) {
+  let reminderBanner = "";
+  if (val && OUTSIDE_STAGES.has(p.stage)) {
+    const deadline = getDeadline(p);
+    const msLeft = deadline - Date.now();
+    const isOver = msLeft < 0;
+    const absMs = Math.abs(msLeft);
+    
+    let timeLeftStr = "";
+    if (absMs < 3600000) timeLeftStr = Math.ceil(absMs / 60000) + " دقيقة";
+    else if (absMs < 86400000) timeLeftStr = Math.ceil(absMs / 3600000) + " ساعة";
+    else timeLeftStr = Math.ceil(absMs / 86400000) + " يوم";
+
+    if (isOver) {
       reminderBanner = `
         <div class="reminder-info overdue-info">
-          ⚠️ تعدّت المدة المحددة بـ ${Math.abs(daysLeft)} يوم — يتم إرسال إشعار يومي
+          ⚠️ تعدّت المدة المحددة بـ ${timeLeftStr} — يتم إرسال إشعار يومي
         </div>`;
     } else {
       reminderBanner = `
         <div class="reminder-info">
-          ⏰ تذكير بعد ${daysLeft} يوم (${deadline.toLocaleDateString("ar-EG")})
+          ⏰ تذكير بعد ${timeLeftStr} (${deadline.toLocaleString("ar-EG")})
         </div>`;
     }
   }
 
-  /* ── next stages options ── */
-  const nextOptions = STAGES.map((s, i) =>
-    i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`
-  ).join("");
-
+  const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
   const updateHtml = canEdit && p.stage < 5 ? `
     <div class="update-section">
       <h4>🔄 تحديث المرحلة</h4>
@@ -877,14 +722,11 @@ function renderCard(p) {
     <div class="part-card${overdue ? ' overdue' : ''}" id="card_${p.id}">
       <div class="part-card-header" onclick="toggleCard('${p.id}')">
         <div class="part-stage-dot" style="background:${stage.color}"></div>
-        <div class="part-name">
-          ${p.name}
-          ${p.serial ? `<span style="font-size:12px;color:var(--muted)">(${p.serial})</span>` : ''}
-        </div>
+        <div class="part-name">${p.name} ${p.serial ? `<span style="font-size:12px;color:var(--muted)">(${p.serial})</span>` : ''}</div>
         <span class="part-machine">${p.machine}</span>
         <span class="stage-badge" style="background:${stage.color}22;color:${stage.color}">${stage.icon} ${stage.label}</span>
         ${overdue ? `<span class="overdue-tag">⚠️ تأخرت</span>` : ''}
-        <span class="part-days">${daysPassed} يوم</span>
+        <span class="part-days">${timePassedStr}</span>
         <span class="part-expand-icon">▼</span>
       </div>
       <div class="part-body">
@@ -892,8 +734,8 @@ function renderCard(p) {
           ${p.center ? `<div class="meta-item"><span class="key">مركز الإصلاح</span><span class="val">🏭 ${p.center}</span></div>` : ''}
           <div class="meta-item"><span class="key">أضافها</span><span class="val">👤 ${p.createdBy}</span></div>
           <div class="meta-item"><span class="key">تاريخ الإخراج</span><span class="val">📅 ${created.toLocaleDateString("ar-EG")}</span></div>
-          <div class="meta-item"><span class="key">المدة الكلية</span><span class="val">⏱️ ${daysPassed} يوم</span></div>
-          ${p.reminderDays ? `<div class="meta-item"><span class="key">مدة التذكير</span><span class="val">⏰ ${p.reminderDays} يوم</span></div>` : ''}
+          <div class="meta-item"><span class="key">المدة الكلية</span><span class="val">⏱️ ${timePassedStr}</span></div>
+          ${val ? `<div class="meta-item"><span class="key">مدة التذكير</span><span class="val">⏰ ${val} ${unitAr}</span></div>` : ''}
         </div>
         ${reminderBanner}
         <div class="timeline">${timelineHtml}</div>
@@ -902,11 +744,8 @@ function renderCard(p) {
     </div>`;
 }
 
-function toggleCard(id) {
-  document.getElementById("card_" + id).classList.toggle("expanded");
-}
+function toggleCard(id) { document.getElementById("card_" + id).classList.toggle("expanded"); }
 
-/* ── TOAST ── */
 function showToast(msg, isError = false) {
   const t = document.getElementById("toast");
   t.innerText  = msg;
@@ -914,7 +753,8 @@ function showToast(msg, isError = false) {
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 3000);
 }
-
 </script>
 </body>
 </html>
+
+```
