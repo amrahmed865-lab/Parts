@@ -1,11 +1,7 @@
-// api/cron.js
 import admin from 'firebase-admin';
 
-// تأكد من ضبط Firebase Admin في Vercel Environment Variables
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault()
-  });
+  admin.initializeApp({ credential: admin.credential.applicationDefault() });
 }
 
 export default async function handler(req, res) {
@@ -13,33 +9,33 @@ export default async function handler(req, res) {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
 
-  const parts = await db.collection('parts')
-    .where('stage', 'in', [0, 1]) // القطع التي خارج المصنع
-    .get();
-  
-  for (const doc of parts.docs) {
+  // نجلب فقط القطع التي لا تزال خارج المصنع
+  const snapshot = await db.collection('parts').where('stage', 'in', [0, 1]).get();
+
+  for (const doc of snapshot.docs) {
     const p = doc.data();
     
-    // تحقق هل تم إرسال إشعار لهذه القطعة اليوم؟
-    if (p.lastNotifiedDate === todayStr) continue; 
+    // منع السبام: لا نرسل إذا كان تم الإرسال اليوم
+    if (p.lastNotifiedDate === todayStr) continue;
 
-    // منطق حساب الوقت (نفس المنطق في الكود الأصلي)
-    const deadline = calculateDeadline(p); 
+    const created = p.createdAt.toDate();
+    let deadline = new Date(created);
     
-    if (new Date() > deadline) {
-      // إرسال الإشعار
+    // حساب الموعد النهائي
+    if (p.reminderUnit === 'days') deadline.setDate(deadline.getDate() + p.reminderValue);
+    else if (p.reminderUnit === 'hours') deadline.setHours(deadline.getHours() + p.reminderValue);
+
+    // إذا تأخرت القطعة، نرسل إشعاراً واحداً فقط ونحدث التاريخ
+    if (now > deadline) {
       await admin.messaging().send({
-        topic: 'all', // أو أرسل لـ token محدد
+        topic: 'all',
         notification: {
-          title: '⚠️ تذكير: قطعة غيار متأخرة',
-          body: `${p.name} — ${p.machine} — تخطت المدة المحددة!`
+          title: '⚠️ تذكير: قطعة متأخرة',
+          body: `${p.name} — ${p.machine} متأخرة عن موعد عودتها!`
         }
       });
-
-      // تسجيل أننا أرسلنا إشعاراً اليوم لهذه القطعة تحديداً
       await doc.ref.update({ lastNotifiedDate: todayStr });
     }
   }
-
-  res.status(200).send('Cron job executed');
+  res.status(200).send('Checked successfully');
 }
