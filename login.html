@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Login</title>
+
+<style>
+body {
+  font-family:Arial;
+  background:#f2f2f2;
+  text-align:center;
+  padding-top:100px;
+}
+.box {
+  background:white;
+  padding:20px;
+  width:300px;
+  margin:auto;
+  border-radius:10px;
+}
+input {
+  width:100%;
+  padding:10px;
+  margin:10px 0;
+}
+button {
+  width:100%;
+  padding:10px;
+  background:blue;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="box">
+  <h2>تسجيل الدخول</h2>
+
+  <input id="username" placeholder="Username">
+  <input id="password" type="password" placeholder="Password">
+
+  <button onclick="login()">دخول</button>
+</div>
+
+<script>
+
+// ✅ اليوزرات
+const users = [
+  { username: "ahmed", password: "1234", role: "admin", machine: "all" },
+  { username: "samy", password: "1234", role: "operator", machine: "Line 1" },
+  { username: "hany", password: "1234", role: "operator", machine: "Line 2" },
+  { username: "alaa", password: "1234", role: "operator", machine: "Line 3" },
+  { username: "amr", password: "1234", role: "technician", machine: "all" }
+];
+
+function login(){
+
+  let u = document.getElementById("username").value.trim().toLowerCase();
+  let p = document.getElementById("password").value.trim();
+
+  let user = users.find(x => x.username === u && x.password === p);
+
+  if(!user){
+    alert("بيانات غلط ❌");
+    return;
+  }
+
+  // ✅ تخزين بيانات اليوزر
+  localStorage.setItem("user", user.username);
+  localStorage.setItem("role", user.role);
+  localStorage.setItem("machine", user.machine);
+
+  location.href = "dashboard.html";
+}
+
+</script>
+
+</body>
+</html>

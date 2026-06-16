@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تتبع قطع الغيار</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3250;
+  --accent: #f59e0b;
+  --accent2: #3b82f6;
+  --text: #e8eaf0;
+  --muted: #7b82a0;
+  --danger: #ef4444;
+  --success: #22c55e;
+
+  /* مراحل القطعة */
+  --s0: #6366f1;  /* خرجت للمركز */
+  --s1: #f59e0b;  /* تحت الإصلاح */
+  --s2: #3b82f6;  /* رجعت من المركز */
+  --s3: #a855f7;  /* اتجربت في الماكينة */
+  --s4: #22c55e;  /* في الضمان */
+  --s5: #10b981;  /* مكتملة */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Cairo', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ═══ HEADER ═══ */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.header-title span { font-size: 22px; }
+
+.header-nav { display: flex; gap: 8px; }
+
+.btn-nav {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Cairo', Arial, sans-serif;
+  font-size: 13px;
+  text-decoration: none;
+  display: inline-block;
+  transition: all .2s;
+}
+.btn-nav:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ═══ MAIN ═══ */
+.main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+
+/* ═══ ADD FORM ═══ */
+.add-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.add-card h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+.form-grid .full { grid-column: 1 / -1; }
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+input, select, textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-family: 'Cairo', Arial, sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent);
+}
+
+textarea { resize: vertical; min-height: 70px; }
+
+select option { background: var(--surface2); }
+
+.btn-add {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 11px 28px;
+  border-radius: 8px;
+  font-family: 'Cairo', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .2s;
+  margin-top: 4px;
+}
+.btn-add:hover { opacity: .85; }
+.btn-add:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ═══ FILTER BAR ═══ */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.filter-bar select, .filter-bar input {
+  width: auto;
+  flex: 1;
+  min-width: 130px;
+  max-width: 220px;
+}
+
+.count-badge {
+  margin-right: auto;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ═══ PARTS LIST ═══ */
+.parts-list { display: flex; flex-direction: column; gap: 12px; }
+
+/* ═══ PART CARD ═══ */
+.part-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color .2s;
+}
+
+.part-card:hover { border-color: var(--accent2); }
+
+.part-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.part-stage-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.part-name {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.part-machine {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--surface2);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.stage-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.part-days {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.part-expand-icon {
+  color: var(--muted);
+  font-size: 12px;
+  transition: transform .2s;
+}
+
+.part-card.expanded .part-expand-icon { transform: rotate(180deg); }
+
+/* ═══ PART BODY ═══ */
+.part-body {
+  display: none;
+  padding: 0 18px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.part-card.expanded .part-body { display: block; }
+
+/* ═══ TIMELINE ═══ */
+.timeline {
+  margin: 18px 0 20px;
+  position: relative;
+  padding-right: 28px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  right: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+
+.tl-item {
+  position: relative;
+  margin-bottom: 16px;
+  padding-right: 24px;
+}
+
+.tl-dot {
+  position: absolute;
+  right: -29px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+
+.tl-item.active .tl-dot { box-shadow: 0 0 0 3px rgba(245,158,11,.3); }
+
+.tl-label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.tl-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.tl-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  background: var(--surface2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border-right: 3px solid var(--border);
+}
+
+.tl-item.pending .tl-label { color: var(--border); }
+.tl-item.pending .tl-dot { background: var(--border); border-color: var(--border); }
+
+/* ═══ UPDATE SECTION ═══ */
+.update-section {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.update-section h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.update-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 500px) {
+  .update-row { grid-template-columns: 1fr; }
+}
+
+.btn-update {
+  background: var(--accent2);
+  color: #fff;
+  border: none;
+  padding: 9px 20px;
+  border-radius: 8px;
+  font-family: 'Cairo', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.btn-update:hover { opacity: .85; }
+
+.part-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  margin-top: 14px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-item .key { font-size: 11px; color: var(--muted); font-weight: 600; }
+.meta-item .val { font-size: 13px; font-weight: 600; }
+
+/* ═══ EMPTY STATE ═══ */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+.empty .icon { font-size: 48px; margin-bottom: 12px; }
+.empty p { font-size: 14px; }
+
+/* ═══ LOADING ═══ */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ═══ TOAST ═══ */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--success);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 9999;
+  transition: transform .3s;
+  pointer-events: none;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+#toast.error { background: var(--danger); }
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <div class="header-title">
+    <span>🔩</span> تتبع قطع الغيار
+  </div>
+  <div class="header-nav">
+    <a href="request.html" class="btn-nav">📋 طلبات</a>
+    <a href="dashboard.html" class="btn-nav">📊 لوحة التحكم</a>
+    <button class="btn-nav" onclick="logout()">خروج</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- FORM إضافة قطعة -->
+  <div class="add-card" id="addSection">
+    <h3>➕ تسجيل قطعة غيار جديدة</h3>
+    <div class="form-grid">
+      <div>
+        <label>اسم القطعة *</label>
+        <input id="partName" placeholder="مثال: موتور الشد الرئيسي" />
+      </div>
+      <div>
+        <label>رقم القطعة / Serial</label>
+        <input id="partSerial" placeholder="اختياري" />
+      </div>
+      <div>
+        <label>الماكينة *</label>
+        <select id="partMachine">
+          <option>Web 7</option>
+          <option>Web 8</option>
+          <option>Web 9</option>
+          <option>Line 1</option>
+          <option>Line 2</option>
+          <option>Line 3</option>
+        </select>
+      </div>
+      <div>
+        <label>مركز الإصلاح الخارجي</label>
+        <input id="partCenter" placeholder="اسم الشركة / المركز" />
+      </div>
+      <div class="full">
+        <label>ملاحظة عند الإخراج</label>
+        <textarea id="partNote" placeholder="وصف المشكلة أو سبب الإرسال للمركز..."></textarea>
+      </div>
+    </div>
+    <button class="btn-add" id="addBtn" onclick="addPart()">📤 تسجيل الإخراج للإصلاح</button>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <select id="filterStage" onchange="render()">
+      <option value="all">كل المراحل</option>
+      <option value="0">خرجت للمركز</option>
+      <option value="1">تحت الإصلاح</option>
+      <option value="2">رجعت من المركز</option>
+      <option value="3">اتجربت في الماكينة</option>
+      <option value="4">في الضمان</option>
+      <option value="5">مكتملة ✅</option>
+    </select>
+    <select id="filterMachine" onchange="render()">
+      <option value="all">كل الماكينات</option>
+      <option>Web 7</option>
+      <option>Web 8</option>
+      <option>Web 9</option>
+      <option>Line 1</option>
+      <option>Line 2</option>
+      <option>Line 3</option>
+    </select>
+    <input type="text" id="filterSearch" placeholder="🔍 ابحث باسم القطعة..." oninput="render()" />
+    <span class="count-badge" id="countBadge">— قطعة</span>
+  </div>
+
+  <!-- LIST -->
+  <div id="partsList" class="parts-list">
+    <div class="loading">⏳ جاري التحميل...</div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ═══ CONFIG ═══ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E",
+  authDomain: "maintenance-nahda.firebaseapp.com",
+  projectId: "maintenance-nahda",
+  storageBucket: "maintenance-nahda.firebasestorage.app",
+  messagingSenderId: "1055981144653",
+  appId: "1:1055981144653:web:cecf0a83969248f7d12a04"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ═══ AUTH ═══ */
+const currentUser = localStorage.getItem("user");
+const role = localStorage.getItem("role");
+const canEdit = (currentUser === "ahmed" || currentUser === "amr");
+
+if (!currentUser) location.href = "index.html";
+if (!canEdit) {
+  document.getElementById("addSection").style.display = "none";
+}
+
+function logout() {
+  localStorage.clear();
+  location.href = "index.html";
+}
+
+/* ═══ STAGES ═══ */
+const STAGES = [
+  { label: "خرجت للمركز",       icon: "📤", color: "#6366f1" },
+  { label: "تحت الإصلاح",       icon: "🔧", color: "#f59e0b" },
+  { label: "رجعت من المركز",    icon: "📥", color: "#3b82f6" },
+  { label: "اتجربت في الماكينة", icon: "⚙️", color: "#a855f7" },
+  { label: "في الضمان",          icon: "🛡️", color: "#22c55e" },
+  { label: "مكتملة",             icon: "✅", color: "#10b981" },
+];
+
+/* ═══ DATA ═══ */
+let allParts = [];
+
+db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
+  allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  render();
+});
+
+/* ═══ ADD PART ═══ */
+async function addPart() {
+  const name = document.getElementById("partName").value.trim();
+  const serial = document.getElementById("partSerial").value.trim();
+  const machine = document.getElementById("partMachine").value;
+  const center = document.getElementById("partCenter").value.trim();
+  const note = document.getElementById("partNote").value.trim();
+
+  if (!name) { showToast("اكتب اسم القطعة ❌", true); return; }
+
+  const btn = document.getElementById("addBtn");
+  btn.disabled = true;
+  btn.innerText = "⏳ جاري الحفظ...";
+
+  try {
+    const now = new Date();
+    await db.collection("parts").add({
+      name,
+      serial: serial || "",
+      machine,
+      center: center || "",
+      stage: 0,
+      createdAt: now,
+      createdBy: currentUser,
+      history: [
+        {
+          stage: 0,
+          date: now.toISOString(),
+          by: currentUser,
+          note: note || ""
+        }
+      ]
+    });
+
+    // send notification
+    await sendNotificationToAll(
+      "📤 قطعة غيار خرجت للإصلاح",
+      `${name} — ${machine} — أرسلها ${currentUser}`
+    );
+
+    document.getElementById("partName").value = "";
+    document.getElementById("partSerial").value = "";
+    document.getElementById("partCenter").value = "";
+    document.getElementById("partNote").value = "";
+
+    showToast("تم تسجيل القطعة ✅");
+  } catch(e) {
+    showToast("خطأ: " + e.message, true);
+  }
+
+  btn.disabled = false;
+  btn.innerText = "📤 تسجيل الإخراج للإصلاح";
+}
+
+/* ═══ UPDATE STAGE ═══ */
+async function updateStage(partId) {
+  const newStage = parseInt(document.getElementById("sel_stage_" + partId).value);
+  const note = document.getElementById("inp_note_" + partId).value.trim();
+
+  const part = allParts.find(p => p.id === partId);
+  if (!part) return;
+
+  const now = new Date();
+  const newEntry = {
+    stage: newStage,
+    date: now.toISOString(),
+    by: currentUser,
+    note: note || ""
+  };
+
+  const history = part.history || [];
+  history.push(newEntry);
+
+  try {
+    await db.collection("parts").doc(partId).update({
+      stage: newStage,
+      history: history,
+      updatedAt: now
+    });
+
+    await sendNotificationToAll(
+      `${STAGES[newStage].icon} قطعة غيار: ${STAGES[newStage].label}`,
+      `${part.name} — ${part.machine} — حدّثها ${currentUser}`
+    );
+
+    document.getElementById("inp_note_" + partId).value = "";
+    showToast("تم التحديث ✅");
+  } catch(e) {
+    showToast("خطأ: " + e.message, true);
+  }
+}
+
+/* ═══ RENDER ═══ */
+function render() {
+  const stageFilter = document.getElementById("filterStage").value;
+  const machineFilter = document.getElementById("filterMachine").value;
+  const search = document.getElementById("filterSearch").value.toLowerCase();
+
+  let data = allParts.filter(p => {
+    const stageOk = stageFilter === "all" || p.stage === parseInt(stageFilter);
+    const machineOk = machineFilter === "all" || p.machine === machineFilter;
+    const searchOk = !search || p.name.toLowerCase().includes(search) || (p.serial||"").toLowerCase().includes(search);
+    return stageOk && machineOk && searchOk;
+  });
+
+  document.getElementById("countBadge").innerText = data.length + " قطعة";
+
+  const list = document.getElementById("partsList");
+
+  if (data.length === 0) {
+    list.innerHTML = `
+      <div class="empty">
+        <div class="icon">🔩</div>
+        <p>مفيش قطع غيار مسجلة في الفلتر دا</p>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = data.map(p => renderCard(p)).join("");
+}
+
+function renderCard(p) {
+  const stage = STAGES[p.stage] || STAGES[0];
+  const history = p.history || [];
+  const createdDate = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+  const daysPassed = Math.floor((Date.now() - createdDate.getTime()) / 86400000);
+
+  // timeline
+  const timelineHtml = STAGES.map((s, i) => {
+    const entry = history.find(h => h.stage === i);
+    const isActive = p.stage === i;
+    const isDone = p.stage > i;
+    const isPending = !entry && !isActive;
+
+    let cls = "tl-item";
+    if (isActive) cls += " active";
+    if (isPending) cls += " pending";
+
+    const dateStr = entry ? new Date(entry.date).toLocaleString("ar-EG") : "";
+    const noteHtml = entry?.note ? `<div class="tl-note">${entry.note}</div>` : "";
+    const byHtml = entry?.by ? ` · ${entry.by}` : "";
+
+    return `
+      <div class="${cls}">
+        <div class="tl-dot" style="background:${isDone || isActive ? s.color : 'var(--border)'}"></div>
+        <div class="tl-label" style="${isDone || isActive ? `color:${s.color}` : ''}">${s.icon} ${s.label}</div>
+        ${dateStr ? `<div class="tl-date">${dateStr}${byHtml}</div>` : ''}
+        ${noteHtml}
+      </div>`;
+  }).join("");
+
+  // next stages only (can only go forward or stay)
+  const nextOptions = STAGES.map((s, i) => {
+    if (i <= p.stage) return "";
+    return `<option value="${i}">${s.icon} ${s.label}</option>`;
+  }).join("");
+
+  const updateHtml = canEdit && p.stage < 5 ? `
+    <div class="update-section">
+      <h4>🔄 تحديث المرحلة</h4>
+      <div class="update-row">
+        <div>
+          <label>المرحلة الجديدة</label>
+          <select id="sel_stage_${p.id}">
+            ${nextOptions}
+          </select>
+        </div>
+        <div>
+          <label>ملاحظة (اختياري)</label>
+          <input id="inp_note_${p.id}" placeholder="مثال: تم الإصلاح والاختبار" />
+        </div>
+      </div>
+      <button class="btn-update" onclick="updateStage('${p.id}')">حفّظ التحديث</button>
+    </div>` : (p.stage === 5 ? `<div style="color:var(--success);font-size:13px;font-weight:700;">✅ القطعة دي اكتملت بنجاح</div>` : '');
+
+  return `
+    <div class="part-card" id="card_${p.id}">
+      <div class="part-card-header" onclick="toggleCard('${p.id}')">
+        <div class="part-stage-dot" style="background:${stage.color}"></div>
+        <div class="part-name">${p.name}${p.serial ? ` <span style="font-size:12px;color:var(--muted)">(${p.serial})</span>` : ''}</div>
+        <span class="part-machine">${p.machine}</span>
+        <span class="stage-badge" style="background:${stage.color}22;color:${stage.color}">${stage.icon} ${stage.label}</span>
+        <span class="part-days">${daysPassed} يوم</span>
+        <span class="part-expand-icon">▼</span>
+      </div>
+      <div class="part-body">
+        <div class="part-meta">
+          ${p.center ? `<div class="meta-item"><span class="key">مركز الإصلاح</span><span class="val">🏭 ${p.center}</span></div>` : ''}
+          <div class="meta-item"><span class="key">أضافها</span><span class="val">👤 ${p.createdBy}</span></div>
+          <div class="meta-item"><span class="key">تاريخ الإخراج</span><span class="val">📅 ${createdDate.toLocaleDateString("ar-EG")}</span></div>
+          <div class="meta-item"><span class="key">المدة الكلية</span><span class="val">⏱️ ${daysPassed} يوم</span></div>
+        </div>
+        <div class="timeline">${timelineHtml}</div>
+        ${updateHtml}
+      </div>
+    </div>`;
+}
+
+function toggleCard(id) {
+  const card = document.getElementById("card_" + id);
+  card.classList.toggle("expanded");
+}
+
+/* ═══ NOTIFICATIONS ═══ */
+async function sendNotificationToAll(title, body) {
+  try {
+    const snap = await db.collection("tokens").get();
+    const seen = new Set();
+    for (const d of snap.docs) {
+      const token = d.data().token;
+      if (seen.has(token)) continue;
+      seen.add(token);
+      try {
+        await fetch("/api/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title, body, token })
+        });
+      } catch(e) {}
+    }
+  } catch(e) {}
+}
+
+/* ═══ TOAST ═══ */
+function showToast(msg, isError = false) {
+  const t = document.getElementById("toast");
+  t.innerText = msg;
+  t.className = isError ? "error" : "";
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3000);
+}
+</script>
+
+</body>
+</html>

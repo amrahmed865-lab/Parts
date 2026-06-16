@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard</title>
+
+<style>
+body { font-family: Arial; background: #f2f2f2; padding:20px;}
+h2 { text-align:center; }
+
+.controls { text-align:center; margin-bottom:15px;}
+select,input { padding:8px; margin:5px;}
+
+table { width:100%; background:white; border-collapse:collapse;}
+th,td { padding:10px; border:1px solid #ddd; text-align:center;}
+
+.open { color:red; font-weight:bold;}
+.closed { color:green;}
+
+textarea { width:100%; height:50px;}
+
+.kpi { text-align:center; margin:10px; font-size:18px; font-weight:bold;}
+
+/* ✅ الشارت 80% */
+.chart-box {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.chart-box canvas {
+  transform: scale(0.8);
+  transform-origin: top center;
+}
+
+canvas { background:#fff; margin:10px 0; border-radius:8px; }
+
+.thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+
+<h2>لوحة الصيانة</h2>
+
+<div style="text-align:center;margin-bottom:10px;">
+  <a href="request.html" style="margin:4px;display:inline-block;">
+    <button style="background:#444;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;">📋 طلب صيانة</button>
+  </a>
+  <a href="parts.html" style="margin:4px;display:inline-block;">
+    <button style="background:#6366f1;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;">🔩 تتبع قطع الغيار</button>
+  </a>
+</div>
+
+<div class="controls">
+
+<select id="statusFilter">
+<option value="all">All</option>
+<option value="open">Open</option>
+<option value="closed">Closed</option>
+</select>
+
+<select id="machineFilter">
+<option value="all">All Machines</option>
+<option>Line 1</option>
+<option>Line 2</option>
+<option>Line 3</option>
+</select>
+
+<select id="techFilter">
+<option value="all">All Tech</option>
+<option>Ahmed</option>
+<option>Ali</option>
+</select>
+
+From <input type="date" id="fromDate">
+To <input type="date" id="toDate">
+
+</div>
+
+<div class="kpi" id="kpi"></div>
+
+<h3 id="chartTitle" style="text-align:center;"></h3>
+
+<div class="chart-box">
+  <canvas id="mainChart"></canvas>
+</div>
+
+<table id="table"></table>
+
+<div id="imgModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:999;">
+  <img id="modalImg" style="max-width:90%; max-height:90%; border-radius:10px;">
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+// 🔐 USER CONTROL
+const user = localStorage.getItem("user");
+const role = localStorage.getItem("role");
+const userMachine = localStorage.getItem("machine");
+
+if(!user){
+  location.href = "index.html";
+}
+
+// 👇 صلاحيات التعديل
+const canEdit = (user === "ahmed" || user === "amr");
+
+// 🔒 قفل الماكينة
+if(!canEdit){
+  machineFilter.value = userMachine;
+  machineFilter.disabled = true;
+}
+
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "maintenance-nahda.firebaseapp.com",
+  projectId: "maintenance-nahda"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const MAX_TIME = 10 * 60;
+
+let allData = [];
+let filteredData = [];
+let chart;
+
+onSnapshot(collection(db,"requests"), snap=>{
+  allData=[];
+
+  snap.forEach(d=>{
+    let data=d.data();
+    data.id=d.id;
+    allData.push(data);
+  });
+
+  allData.sort((a,b)=>{
+    if(a.status !== b.status){
+      return a.status === "open" ? -1 : 1;
+    }
+    return (b.time?.seconds || 0) - (a.time?.seconds || 0);
+  });
+
+  render();
+  drawCharts();
+});
+
+function formatDate(t){
+ if(!t?.seconds) return "-";
+ return new Date(t.seconds*1000).toLocaleString();
+}
+
+function calcDuration(start,end){
+ if(!start || !end) return "-";
+
+ let diff = end.seconds - start.seconds;
+
+ let d = Math.floor(diff/86400);
+ let h = Math.floor((diff%86400)/3600);
+ let m = Math.floor((diff%3600)/60);
+ let s = diff%60;
+
+ if(d>0) return `${d}d ${h}h`;
+ if(h>0) return `${h}h ${m}m`;
+ if(m>0) return `${m}m ${s}s`;
+ return `${s}s`;
+}
+
+function getElapsedSeconds(start){
+ if(!start?.seconds) return 0;
+ return Math.floor(Date.now()/1000 - start.seconds);
+}
+
+function render(){
+
+ let status=statusFilter.value;
+ let machine = canEdit ? machineFilter.value : userMachine;
+ let tech=techFilter.value;
+ let from=fromDate.value;
+ let to=toDate.value;
+
+ filteredData = allData.filter(d=>{
+
+  let ok = (status==="all"||d.status===status)
+    && (machine==="all"||d.machine===machine)
+    && (tech==="all"||(d.tech||"")===tech);
+
+  if(d.time?.seconds){
+    let dt=new Date(d.time.seconds*1000);
+    if(from) ok &= dt>=new Date(from);
+    if(to){
+      let t=new Date(to); t.setHours(23,59,59);
+      ok &= dt<=t;
+    }
+  }
+
+  return ok;
+ });
+
+ let openCount = filteredData.filter(d=>d.status==="open").length;
+ let closedCount = filteredData.filter(d=>d.status==="closed").length;
+
+ kpi.innerHTML = `🔴 Open: ${openCount} | 🟢 Closed: ${closedCount}`;
+
+ let html=`
+ <tr>
+ <th>#</th>
+ <th>Machine</th>
+ <th>Image</th>
+ <th>Description</th>
+ <th>Status</th>
+ <th>Tech</th>
+ <th>Start</th>
+ <th>End</th>
+ <th>Duration</th>
+ <th>Comment</th>
+ <th>Action</th>
+ </tr>`;
+
+ filteredData.forEach((d,index)=>{
+
+ let closed=d.status==="closed";
+ let isLate=!closed && getElapsedSeconds(d.time)>MAX_TIME;
+
+ html+=`
+ <tr style="${isLate?'background:#ffe5e5':''}">
+ <td>${index+1}</td>
+ <td>${d.machine}</td>
+
+ <td>
+ ${
+  d.image 
+   ? `<img src="${d.image}" class="thumb" onclick="showImage('${d.image}')">`
+   : "-"
+ }
+ </td>
+
+ <td>${d.description}</td>
+
+ <td class="${closed?"closed":"open"}">
+ ${d.status} ${isLate?"⚠️":""}
+ </td>
+
+ <td>
+ <select ${closed || !canEdit ? "disabled":""} onchange="assign('${d.id}',this.value)">
+ <option value="">--</option>
+ <option ${d.tech=="Ahmed"?"selected":""}>Ahmed</option>
+ <option ${d.tech=="Ali"?"selected":""}>Ali</option>
+ </select>
+ </td>
+
+ <td>${formatDate(d.time)}</td>
+ <td>${formatDate(d.endTime)}</td>
+ <td>${calcDuration(d.time,d.endTime)}</td>
+
+ <td>
+ <textarea ${closed || !canEdit ? "disabled":""}
+ onchange="saveComment('${d.id}',this.value)">
+ ${d.comment||""}
+ </textarea>
+ </td>
+
+ <td>
+ ${!closed && canEdit ? `<button onclick="closeReq('${d.id}')">Close</button>`:"Done"}
+ </td>
+ </tr>`;
+ });
+
+ table.innerHTML=html;
+}
+
+window.assign=async(id,val)=>{
+ if(!canEdit) return;
+ await updateDoc(doc(db,"requests",id),{tech:val});
+};
+
+window.saveComment=async(id,val)=>{
+ if(!canEdit) return;
+ await updateDoc(doc(db,"requests",id),{comment:val});
+};
+
+window.closeReq=async(id)=>{
+ if(!canEdit) return;
+
+ let item=allData.find(x=>x.id===id);
+
+ if(!item.comment){
+  alert("اكتب تعليق الأول");
+  return;
+ }
+
+ await updateDoc(doc(db,"requests",id),{
+  status:"closed",
+  endTime:new Date()
+ });
+};
+
+function drawCharts(){
+
+ let tech = techFilter.value;
+ let labels=[],values=[],title="";
+
+ let dataForChart = canEdit 
+   ? filteredData 
+   : filteredData.filter(d => d.machine === userMachine);
+
+ if(tech!=="all"){
+
+  let map={};
+
+  dataForChart.forEach(d=>{
+    if(d.status==="closed" && d.tech===tech && d.time && d.endTime){
+
+      let key=new Date(d.time.seconds*1000).toISOString().split("T")[0];
+      let duration=(d.endTime.seconds-d.time.seconds)/3600;
+
+      if(!map[key]) map[key]={t:0,c:0};
+
+      map[key].t+=duration;
+      map[key].c++;
+    }
+  });
+
+  labels=Object.keys(map).sort();
+  values=labels.map(k=>(map[k].t/map[k].c).toFixed(2));
+
+  title=`متوسط زمن الإصلاح (ساعات) - ${tech}`;
+ }
+
+ else{
+
+  let map={};
+
+  dataForChart.forEach(d=>{
+    if(!d.time?.seconds) return;
+    let key=new Date(d.time.seconds*1000).toISOString().split("T")[0];
+    map[key]=(map[key]||0)+1;
+  });
+
+  labels=Object.keys(map).sort();
+  values=labels.map(k=>map[k]);
+
+  title="عدد الطلبات عبر الأيام";
+ }
+
+ if(chart) chart.destroy();
+
+ document.getElementById("chartTitle").innerText=title;
+
+ chart=new Chart(document.getElementById("mainChart"),{
+  type:"line",
+  data:{
+    labels,
+    datasets:[{
+      label:title,
+      data:values,
+      tension:0.3
+    }]
+  }
+ });
+}
+
+window.showImage = (src)=>{
+ document.getElementById("imgModal").style.display = "flex";
+ document.getElementById("modalImg").src = src;
+};
+
+document.getElementById("imgModal").onclick = ()=>{
+ document.getElementById("imgModal").style.display = "none";
+};
+
+statusFilter.onchange=()=>{render(); drawCharts();};
+machineFilter.onchange=()=>{render(); drawCharts();};
+techFilter.onchange=()=>{render(); drawCharts();};
+fromDate.onchange=()=>{render(); drawCharts();};
+toDate.onchange=()=>{render(); drawCharts();};
+
+</script>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+  getFirestore,
+  collection,
+  addDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+import {
+  getMessaging,
+  getToken,
+  onMessage
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E",
+  authDomain: "maintenance-nahda.firebaseapp.com",
+  projectId: "maintenance-nahda",
+  storageBucket: "maintenance-nahda.firebasestorage.app",
+  messagingSenderId: "1055981144653",
+  appId: "1:1055981144653:web:cecf0a83969248f7d12a04"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const messaging = getMessaging(app);
+
+async function startNotifications() {
+
+  try {
+
+    if ('serviceWorker' in navigator) {
+
+      await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission === 'granted') {
+
+      const token = await getToken(messaging, {
+        vapidKey: 'BLeQCahZDRsoXPJUFE3SshG7hMHzqPeVts8SG3b4b526BENvcerNez7htoPy03CQtI1GZYOUBFJd0Ddz1l4biuc'
+      });
+
+      console.log("FCM TOKEN:", token);
+
+      await addDoc(collection(db, "tokens"), {
+        token: token,
+        user: localStorage.getItem("username") || "unknown",
+        createdAt: new Date()
+      });
+
+      console.log("Notifications Enabled");
+
+    }
+
+    onMessage(messaging, (payload) => {
+
+      new Notification(payload.notification.title, {
+        body: payload.notification.body,
+        icon: '/icon-192.png'
+      });
+
+    });
+
+  } catch (e) {
+
+    console.error(e);
+
+  }
+
+}
+
+startNotifications();
+
+</script>
+
+
+<script>
+
+async function debugNotifications() {
+
+  const debugBox = document.createElement('div');
+
+  debugBox.style.position = 'fixed';
+  debugBox.style.bottom = '10px';
+  debugBox.style.left = '10px';
+  debugBox.style.right = '10px';
+  debugBox.style.background = '#000';
+  debugBox.style.color = '#0f0';
+  debugBox.style.zIndex = '999999';
+  debugBox.style.padding = '10px';
+  debugBox.style.fontSize = '12px';
+  debugBox.style.maxHeight = '200px';
+  debugBox.style.overflow = 'auto';
+
+  debugBox.innerHTML = 'Notification Debug Started...';
+
+  document.body.appendChild(debugBox);
+
+  function log(msg) {
+    console.log(msg);
+    debugBox.innerHTML += '<br>' + msg;
+  }
+
+  try {
+
+    log('User Agent: ' + navigator.userAgent);
+
+    if (!('serviceWorker' in navigator)) {
+      log('Service Worker NOT supported');
+      return;
+    }
+
+    log('Service Worker supported');
+
+    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+
+    log('SW Registered');
+
+    const permission = await Notification.requestPermission();
+
+    log('Permission: ' + permission);
+
+    if (permission !== 'granted') {
+      log('Notification permission denied');
+      return;
+    }
+
+    log('Notifications allowed');
+
+    if (!window.firebaseTokenSaved) {
+      log('Waiting for Firebase token...');
+    }
+
+  } catch (e) {
+
+    log('ERROR: ' + e.message);
+
+  }
+
+}
+
+// window.addEventListener('load', debugNotifications); // disabled, keep for manual use
+
+</script>
+
+
+<script type="module">
+
+import {
+  getFirestore,
+  collection,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+async function sendNotificationToAll(title, body) {
+
+  try {
+
+    const db = window.db || getFirestore();
+
+    const snapshot = await getDocs(collection(db, "tokens"));
+
+    snapshot.forEach(async (docu) => {
+
+      const token = docu.data().token;
+
+      await fetch('/api/notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title,
+          body,
+          token
+        })
+      });
+
+    });
+
+    console.log('Notifications Sent');
+
+  } catch (e) {
+
+    console.error(e);
+
+  }
+
+}
+
+window.sendNotificationToAll = sendNotificationToAll;
+
+</script>
+
+</body>
+</html>
