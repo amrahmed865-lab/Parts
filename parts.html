@@ -474,11 +474,11 @@ let allParts = [];
 db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
   allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   render();
-  checkReminders();
+  //checkReminders();
 });
 
 // تشغيل فحص التذكيرات كل 60 ثانية (تلقائياً)
-setInterval(checkReminders, 60000);
+//setInterval(checkReminders, 60000);
 
 const REMINDER_SENT_KEY = "parts_reminder_sent";
 
@@ -495,40 +495,7 @@ function getDeadline(p) {
 }
 
 async function checkReminders() {
-  const today = new Date().toISOString().split("T")[0];
-  const sentToday = JSON.parse(localStorage.getItem(REMINDER_SENT_KEY) || "{}");
 
-  for (const part of allParts) {
-    if (!OUTSIDE_STAGES.has(part.stage)) continue;
-    
-    const deadline = getDeadline(part);
-    if (!deadline) continue;
-
-    const isOverdue = new Date() > deadline;
-    if (!isOverdue) continue;
-
-    // لتفادي إرسال إشعار متكرر لنفس القطعة في نفس اليوم
-    if (sentToday[part.id] === today) continue;
-
-    const created = part.createdAt?.toDate ? part.createdAt.toDate() : new Date(part.createdAt);
-    const timePassedMs = Date.now() - created.getTime();
-    const daysPassed = Math.floor(timePassedMs / 86400000);
-    const hoursPassed = Math.floor(timePassedMs / 3600000);
-    const minutesPassed = Math.floor(timePassedMs / 60000);
-
-    let passedText = `${daysPassed} يوم`;
-    if (daysPassed === 0 && hoursPassed > 0) passedText = `${hoursPassed} ساعة`;
-    else if (daysPassed === 0 && hoursPassed === 0) passedText = `${minutesPassed} دقيقة`;
-
-    await sendNotificationToAll(
-      "⚠️ قطعة غيار تعدّت المدة!",
-      `${part.name} — ${part.machine} — بقالها ${passedText} برّا المصنع`
-    );
-
-    sentToday[part.id] = today;
-    localStorage.setItem(REMINDER_SENT_KEY, JSON.stringify(sentToday));
-  }
-}
 
 async function addPart() {
   const name          = document.getElementById("partName").value.trim();
