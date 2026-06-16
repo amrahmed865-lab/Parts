@@ -1,7 +1,7 @@
 // api/cron.js
 import admin from 'firebase-admin';
 
-// تهيئة Firebase Admin (تأكد من إعداد Firebase Service Account في Vercel Environment Variables)
+// تأكد من ضبط Firebase Admin في Vercel Environment Variables
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.applicationDefault()
@@ -10,28 +10,36 @@ if (!admin.apps.length) {
 
 export default async function handler(req, res) {
   const db = admin.firestore();
-  const parts = await db.collection('parts').where('stage', 'in', [0, 1]).get();
-  
-  const now = Date.now();
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
 
+  const parts = await db.collection('parts')
+    .where('stage', 'in', [0, 1]) // القطع التي خارج المصنع
+    .get();
+  
   for (const doc of parts.docs) {
     const p = doc.data();
-    // منطق حساب التاريخ (نفس المنطق السابق)
-    const created = p.createdAt.toDate();
-    const deadline = new Date(created);
-    deadline.setDate(deadline.getDate() + (p.reminderDays || 7));
+    
+    // تحقق هل تم إرسال إشعار لهذه القطعة اليوم؟
+    if (p.lastNotifiedDate === todayStr) continue; 
 
-    if (now > deadline.getTime()) {
-      // إرسال الإشعار عبر FCM
+    // منطق حساب الوقت (نفس المنطق في الكود الأصلي)
+    const deadline = calculateDeadline(p); 
+    
+    if (new Date() > deadline) {
+      // إرسال الإشعار
       await admin.messaging().send({
-        topic: 'all',
+        topic: 'all', // أو أرسل لـ token محدد
         notification: {
-          title: '⚠️ تذكير بقطعة غيار',
-          body: `${p.name} تأخرت خارج المصنع!`
+          title: '⚠️ تذكير: قطعة غيار متأخرة',
+          body: `${p.name} — ${p.machine} — تخطت المدة المحددة!`
         }
       });
+
+      // تسجيل أننا أرسلنا إشعاراً اليوم لهذه القطعة تحديداً
+      await doc.ref.update({ lastNotifiedDate: todayStr });
     }
   }
 
-  res.status(200).end('Cron job finished');
+  res.status(200).send('Cron job executed');
 }
