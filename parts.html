@@ -1,56 +1,88 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>تتبع قطع الغيار</title>
-<!-- [إضافة مكتبات Firebase كما هي في ملفك الأصلي] -->
-<style>
-    /* [نفس التنسيقات الخاصة بك] */
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تتبع قطع الغيار</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+    <style>
+        /* التنسيقات الخاصة بك كما هي */
+        :root { --bg: #0f1117; --surface: #1a1d27; --accent: #f59e0b; --text: #e8eaf0; }
+        body { font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+        .add-card { background: var(--surface); padding: 20px; border-radius: 14px; margin-bottom: 20px; }
+        input, select { width: 100%; padding: 10px; margin-bottom: 10px; background: #22263a; color: white; border: 1px solid #2e3250; border-radius: 8px; }
+        button { background: var(--accent); border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; }
+    </style>
 </head>
 <body>
-<!-- [نفس الهيكل HTML الخاص بك] -->
+
+<div class="add-card">
+    <h3>➕ تسجيل قطعة غيار</h3>
+    <input id="partName" placeholder="اسم القطعة">
+    <select id="partMachine">
+        <option>Web 7</option><option>Web 8</option>
+    </select>
+    <input type="number" id="reminderDays" value="7" placeholder="أيام التذكير">
+    <button id="addBtn" onclick="addPart()">📤 تسجيل الإخراج</button>
+</div>
+
+<div id="partsList"></div>
 
 <script>
-// إعدادات Firebase
-const firebaseConfig = { /* بياناتك */ };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const currentUser = localStorage.getItem("user");
+    // 1. الإعدادات (ضع بياناتك هنا)
+    const firebaseConfig = {
+        apiKey: "AIzaSy...",
+        projectId: "maintenance-nahda",
+        // ... باقي البيانات
+    };
 
-// دالة إرسال الإشعار (تُستخدم فقط عند إضافة قطعة جديدة يدوياً)
-async function sendNotificationToAll(title, body) {
-  try {
-    await fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body })
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const currentUser = localStorage.getItem("user");
+
+    // 2. دالة إرسال التنبيه للسيرفر (Vercel API)
+    async function sendNotificationToAll(title, body) {
+        try {
+            await fetch('/api/notify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, body })
+            });
+        } catch(e) { console.error("Error:", e); }
+    }
+
+    // 3. دالة الإضافة (بدون أي كود فحص تلقائي)
+    async function addPart() {
+        const name = document.getElementById("partName").value.trim();
+        const reminderDays = parseInt(document.getElementById("reminderDays").value) || 7;
+        
+        if (!name) return alert("اكتب اسم القطعة!");
+
+        await db.collection("parts").add({
+            name,
+            machine: document.getElementById("partMachine").value,
+            stage: 0,
+            reminderDays,
+            createdAt: new Date(),
+            createdBy: currentUser,
+            lastNotifiedDate: null // مهم جداً للـ Cron Job
+        });
+
+        await sendNotificationToAll("جديد", `تم إضافة ${name}`);
+        alert("تم الحفظ!");
+    }
+
+    // 4. عرض البيانات (بدون تكرار)
+    db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
+        const list = document.getElementById("partsList");
+        list.innerHTML = "";
+        snap.forEach(doc => {
+            const p = doc.data();
+            list.innerHTML += `<div style="padding:10px; border-bottom:1px solid #333;">${p.name} - ${p.machine}</div>`;
+        });
     });
-  } catch(e) { console.error("Notification trigger error"); }
-}
-
-async function addPart() {
-  const name = document.getElementById("partName").value.trim();
-  if (!name) return;
-
-  const newPart = {
-    name,
-    machine: document.getElementById("partMachine").value,
-    stage: 0,
-    createdAt: new Date(),
-    createdBy: currentUser,
-    reminderValue: parseInt(document.getElementById("reminderValue").value) || 7,
-    reminderUnit: document.getElementById("reminderUnit").value,
-    lastNotifiedDate: null // مفتاح مهم جداً للـ Cron Job
-  };
-
-  await db.collection("parts").add(newPart);
-  await sendNotificationToAll("جديد", `تم إضافة قطعة ${name} — ${newPart.machine}`);
-  showToast("تم الحفظ بنجاح");
-}
-
-function showToast(msg) { /* كود التوست الخاص بك */ }
-function logout() { localStorage.clear(); location.href = "index.html"; }
 </script>
 </body>
 </html>
