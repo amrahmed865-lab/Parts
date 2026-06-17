@@ -1,63 +1,121 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
+import { getFirestore } from "firebase-admin/firestore";
 
 if (!getApps().length) {
   initializeApp({
     credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
+      projectId:   process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n")
+      privateKey:  process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
     })
   });
 }
 
-const db = getFirestore();
+const OUTSIDE_STAGES = new Set([0, 1]); // خرجت للمركز / تحت الإصلاح
+
+function getDeadline(part) {
+  const val  = part.reminderValue || part.reminderDays;
+  const unit = part.reminderUnit  || 'days';
+  if (!val) return null;
+
+  const created  = part.createdAt?._seconds
+    ? new Date(part.createdAt._seconds * 1000)
+    : new Date(part.createdAt);
+
+  const deadline = new Date(created);
+  if      (unit === 'minutes') deadline.setMinutes(deadline.getMinutes() + val);
+  else if (unit === 'hours')   deadline.setHours(deadline.getHours()     + val);
+  else                         deadline.setDate(deadline.getDate()        + val);
+  return deadline;
+}
 
 export default async function handler(req, res) {
-
-  const partsSnap = await db.collection("parts").get();
-  const tokensSnap = await db.collection("tokens").get();
-
-  const tokens = tokensSnap.docs.map(d => d.data().token);
-
-  let sent = 0;
-
-  for (const doc of partsSnap.docs) {
-
-    const part = doc.data();
-
-    if (![0,1].includes(part.stage)) continue;
-
-    const created = part.createdAt.toDate();
-
-    let deadline = new Date(created);
-
-    const value = part.reminderValue || part.reminderDays || 7;
-    const unit = part.reminderUnit || "days";
-
-    if (unit === "minutes")
-      deadline.setMinutes(deadline.getMinutes() + value);
-    else if (unit === "hours")
-      deadline.setHours(deadline.getHours() + value);
-    else
-      deadline.setDate(deadline.getDate() + value);
-
-    if (Date.now() < deadline.getTime()) continue;
-
-    await getMessaging().sendEachForMulticast({
-      tokens,
-      notification: {
-        title: "⚠️ قطعة غيار متأخرة",
-        body: `${part.name} - ${part.machine}`
-      }
-    });
-
-    sent++;
+  // Vercel Cron بيبعت GET — نتأكد إن الـ request من Vercel
+  const authHeader = req.headers['authorization'];
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  res.status(200).json({
-    success: true,
-    remindersSent: sent
-  });
+  try {
+    const db   = getFirestore();
+    const snap = await db.collection('parts').get();
+
+    const now      = Date.now();
+    const today    = new Date().toISOString().split('T')[0];
+    const toNotify = [];
+
+    for (const doc of snap.docs) {
+      const part = { id: doc.id, ...doc.data() };
+
+      if (!OUTSIDE_STAGES.has(part.stage)) continue;
+
+      const deadline = getDeadline(part);
+      if (!deadline || now <= deadline.getTime()) continue;
+
+      // اتبعت إشعار النهارده؟
+      if (part.reminderSentDate === today) continue;
+
+      toNotify.push(part);
+    }
+
+    if (toNotify.length === 0) {
+      return res.status(200).json({ success: true, notified: 0 });
+    }
+
+    // جيب كل التوكنات
+    const tokenSnap = await db.collection('tokens').get();
+    const seen   = new Set();
+    const tokens = [];
+    tokenSnap.forEach(d => {
+      const t = d.data().token;
+      if (t && !seen.has(t)) { seen.add(t); tokens.push(t); }
+    });
+
+    if (tokens.length === 0) {
+      return res.status(200).json({ success: true, notified: 0, reason: 'no tokens' });
+    }
+
+    const messaging = getMessaging();
+    const batch     = db.batch();
+
+    for (const part of toNotify) {
+      const created    = part.createdAt?._seconds
+        ? new Date(part.createdAt._seconds * 1000)
+        : new Date(part.createdAt);
+      const daysPassed = Math.floor((now - created.getTime()) / 86400000);
+
+      // ابعت الإشعار
+      await messaging.sendEachForMulticast({
+        tokens,
+        notification: {
+          title: '⚠️ قطعة غيار تعدّت المدة!',
+          body:  `${part.name} — ${part.machine} — بقالها ${daysPassed} يوم برّا المصنع`
+        },
+        webpush: {
+          headers: { TTL: '86400', Urgency: 'high' },
+          notification: {
+            title: '⚠️ قطعة غيار تعدّت المدة!',
+            body:  `${part.name} — ${part.machine} — بقالها ${daysPassed} يوم برّا المصنع`,
+            icon:  '/icon-192.png',
+            badge: '/icon-192.png'
+          },
+          fcmOptions: { link: '/parts.html' }
+        }
+      });
+
+      // سجّل إن الإشعار اتبعت النهارده
+      batch.update(db.collection('parts').doc(part.id), {
+        reminderSentDate: today
+      });
+    }
+
+    await batch.commit();
+
+    return res.status(200).json({ success: true, notified: toNotify.length });
+
+  } catch (e) {
+    console.error('check-reminders error:', e);
+    return res.status(500).json({ error: e.message });
+  }
 }
