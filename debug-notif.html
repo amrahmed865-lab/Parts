@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>Debug Notifications</title>
+<style>
+body { font-family: monospace; background: #0f1117; color: #e8eaf0; padding: 20px; }
+h2 { color: #f59e0b; }
+.card { background: #1a1d27; border: 1px solid #2e3250; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.label { color: #7b82a0; font-size: 12px; margin-bottom: 4px; }
+.val { font-size: 14px; word-break: break-all; }
+.ok  { color: #22c55e; }
+.err { color: #ef4444; }
+.warn{ color: #f59e0b; }
+button { background: #3b82f6; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin: 4px; font-size: 14px; }
+button:disabled { opacity: .5; }
+pre { background: #22263a; padding: 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; }
+</style>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+</head>
+<body>
+
+<h2>🔍 Debug — نظام الإشعارات</h2>
+
+<div class="card">
+  <div class="label">١ — إذن الإشعارات</div>
+  <div class="val" id="permStatus">...</div>
+</div>
+
+<div class="card">
+  <div class="label">٢ — Service Worker</div>
+  <div class="val" id="swStatus">...</div>
+</div>
+
+<div class="card">
+  <div class="label">٣ — FCM Token</div>
+  <div class="val" id="tokenStatus">...</div>
+  <div class="val" id="tokenVal" style="font-size:11px;color:#7b82a0;margin-top:6px;"></div>
+</div>
+
+<div class="card">
+  <div class="label">٤ — Tokens في Firestore</div>
+  <div class="val" id="firestoreTokens">...</div>
+</div>
+
+<div class="card">
+  <div class="label">٥ — اختبار /api/notify</div>
+  <button onclick="testNotify()">📤 ابعت إشعار تجريبي</button>
+  <pre id="notifyResult">—</pre>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey:            'AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E',
+  authDomain:        'maintenance-nahda.firebaseapp.com',
+  projectId:         'maintenance-nahda',
+  storageBucket:     'maintenance-nahda.firebasestorage.app',
+  messagingSenderId: '1055981144653',
+  appId:             '1:1055981144653:web:cecf0a83969248f7d12a04'
+};
+firebase.initializeApp(firebaseConfig);
+const db        = firebase.firestore();
+const messaging = firebase.messaging();
+
+const VAPID = 'BLeQCahZDRsoXPJUFE3SshG7hMHzqPeVts8SG3b4b526BENvcerNez7htoPy03CQtI1GZYOUBFJd0Ddz1l4biuc';
+
+function set(id, html, cls='') {
+  const el = document.getElementById(id);
+  el.innerHTML = html;
+  if (cls) el.className = 'val ' + cls;
+}
+
+async function runDebug() {
+
+  // ١ — إذن
+  const perm = Notification.permission;
+  set('permStatus',
+    perm === 'granted' ? '✅ مسموح (granted)' :
+    perm === 'denied'  ? '❌ مرفوض (denied) — لازم تسمح من إعدادات المتصفح' :
+                         '⚠️ لم يُطلب بعد (default)',
+    perm === 'granted' ? 'ok' : perm === 'denied' ? 'err' : 'warn'
+  );
+
+  if (perm !== 'granted') {
+    const r = await Notification.requestPermission();
+    set('permStatus',
+      r === 'granted' ? '✅ تم السماح الآن' : '❌ رُفض',
+      r === 'granted' ? 'ok' : 'err'
+    );
+    if (r !== 'granted') return;
+  }
+
+  // ٢ — SW
+  try {
+    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const state = reg.active?.state || reg.installing?.state || reg.waiting?.state || 'unknown';
+    set('swStatus', `✅ مسجّل — state: ${state}`, 'ok');
+
+    // ٣ — Token
+    try {
+      const token = await messaging.getToken({ vapidKey: VAPID, serviceWorkerRegistration: reg });
+      if (token) {
+        set('tokenStatus', '✅ Token موجود', 'ok');
+        document.getElementById('tokenVal').textContent = token;
+
+        // احفظه في Firestore
+        await db.collection('tokens').doc(token).set({
+          token, user: 'debug', createdAt: new Date()
+        });
+
+        // ٤ — كل التوكنات
+        const snap = await db.collection('tokens').get();
+        const tokens = [];
+        snap.forEach(d => tokens.push({ id: d.id.slice(0,20)+'...', user: d.data().user }));
+        set('firestoreTokens', `✅ ${tokens.length} token في Firestore:<br>` +
+          tokens.map(t => `• ${t.id} (${t.user})`).join('<br>'), 'ok');
+
+        // استقبال إشعارات لما الصفحة مفتوحة
+        messaging.onMessage(async (payload) => {
+          alert('📨 وصل إشعار: ' + payload.notification?.title);
+        });
+
+      } else {
+        set('tokenStatus', '❌ Token فاضي — تأكد من VAPID key', 'err');
+      }
+    } catch(e) {
+      set('tokenStatus', '❌ خطأ في Token: ' + e.message, 'err');
+    }
+
+  } catch(e) {
+    set('swStatus', '❌ فشل تسجيل SW: ' + e.message, 'err');
+  }
+}
+
+async function testNotify() {
+  const pre = document.getElementById('notifyResult');
+  pre.textContent = '⏳ جاري الإرسال...';
+
+  try {
+    const res = await fetch('/api/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '🧪 اختبار الإشعارات',
+        body:  'لو وصلك الإشعار ده، النظام شغّال ✅'
+      })
+    });
+    const json = await res.json();
+    pre.textContent = 'HTTP ' + res.status + '\n' + JSON.stringify(json, null, 2);
+    pre.className = res.ok && json.sent > 0 ? 'ok' : 'err';
+  } catch(e) {
+    pre.textContent = '❌ ' + e.message;
+    pre.className = 'err';
+  }
+}
+
+runDebug();
+</script>
+</body>
+</html>
