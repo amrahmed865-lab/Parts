@@ -3,540 +3,148 @@
 <head>
 <meta charset="UTF-8">
 <title>طلب صيانة</title>
-
 <style>
-
-body{
-  font-family:Arial;
-  direction:rtl;
-  text-align:center;
-  background:#f2f2f2;
-}
-
-.container{
-  background:white;
-  padding:20px;
-  margin:50px auto;
-  width:300px;
-  border-radius:10px;
-}
-
-select,
-textarea{
-  width:100%;
-  margin:10px 0;
-  padding:10px;
-}
-
-button{
-  background:red;
-  color:white;
-  padding:15px;
-  border:none;
-  width:100%;
-  margin-top:5px;
-}
-
-#preview{
-  width:100%;
-  margin-top:10px;
-  display:none;
-  border-radius:8px;
-}
-
+body { font-family:Arial; direction:rtl; text-align:center; background:#f2f2f2; }
+.container { background:white; padding:20px; margin:50px auto; width:300px; border-radius:10px; }
+select, textarea { width:100%; margin:10px 0; padding:10px; }
+button { background:red; color:white; padding:15px; border:none; width:100%; margin-top:5px; cursor:pointer; }
+#preview { width:100%; margin-top:10px; display:none; border-radius:8px; }
 </style>
 
-<script src="firebase-notifications.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+<script src="notif-helper.js"></script>
 
 </head>
-
 <body>
-
 <div class="container">
-
 <h2>بلاغ عطل</h2>
-
-<button
-onclick="logout()"
-style="background:black;">
-Logout
-</button>
+<button onclick="logout()" style="background:black;">Logout</button>
 
 <select id="machine">
-
-<option>Web 7</option>
-
-<option>Web 8</option>
-
-<option>Web 9</option>
-
+  <option>Web 7</option>
+  <option>Web 8</option>
+  <option>Web 9</option>
 </select>
 
 <select id="type">
-
-<option>Electrical</option>
-
-<option>Mechanical</option>
-
-<option>Emergency</option>
-
+  <option>Electrical</option>
+  <option>Mechanical</option>
+  <option>Emergency</option>
 </select>
 
-<textarea
-id="desc"
-placeholder="اكتب وصف العطل"></textarea>
+<textarea id="desc" placeholder="اكتب وصف العطل"></textarea>
 
-<input
-type="file"
-id="photo"
-accept="image/*"
-capture="environment">
-
+<input type="file" id="photo" accept="image/*" capture="environment">
 <img id="preview">
+<button id="retakeBtn" style="display:none;background:orange;">إعادة التصوير</button>
+<button id="deleteBtn" style="display:none;background:#555;">حذف الصورة</button>
+<button id="sendBtn">إرسال</button>
 
-<button
-id="retakeBtn"
-style="display:none;background:orange;">
-
-إعادة التصوير
-
-</button>
-
-<button
-id="deleteBtn"
-style="display:none;background:#555;">
-
-حذف الصورة
-
-</button>
-
-<button id="sendBtn">
-
-إرسال
-
-</button>
-
-<a href="dashboard.html">
-
-<button style="background:blue;">
-
-عرض الطلبات
-
-</button>
-
-</a>
-
-<a href="parts.html">
-
-<button style="background:#6366f1;">
-
-🔩 تتبع قطع الغيار
-
-</button>
-
-</a>
-
+<a href="dashboard.html"><button style="background:blue;">عرض الطلبات</button></a>
+<a href="parts.html"><button style="background:#6366f1;">🔩 تتبع قطع الغيار</button></a>
 </div>
 
 <script>
+const user        = localStorage.getItem('user');
+const role        = localStorage.getItem('role');
+const userMachine = localStorage.getItem('machine');
+const canEdit     = (user === 'ahmed' || user === 'amr');
 
-const user =
-localStorage.getItem("user");
-
-const role =
-localStorage.getItem("role");
-
-const userMachine =
-localStorage.getItem("machine");
-
-const canEditMachine =
-(user === "ahmed" || user === "amr");
-
-if(!role){
-
-  location.href = "index.html";
-
-}
+if (!role) location.href = 'index.html';
 
 const firebaseConfig = {
-
-  apiKey:
-  "AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E",
-
-  authDomain:
-  "maintenance-nahda.firebaseapp.com",
-
-  projectId:
-  "maintenance-nahda",
-
-  storageBucket:
-  "maintenance-nahda.firebasestorage.app",
-
-  messagingSenderId:
-  "1055981144653",
-
-  appId:
-  "1:1055981144653:web:cecf0a83969248f7d12a04"
-
+  apiKey:            'AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E',
+  authDomain:        'maintenance-nahda.firebaseapp.com',
+  projectId:         'maintenance-nahda',
+  storageBucket:     'maintenance-nahda.firebasestorage.app',
+  messagingSenderId: '1055981144653',
+  appId:             '1:1055981144653:web:cecf0a83969248f7d12a04'
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const db = firebase.firestore();
 
-const messaging = firebase.messaging();
+// ── تفعيل FCM فور الدخول ──
+initFCM(db);
 
-emailjs.init("CDg5SfvTTuu8kZdV5");
+const machineEl  = document.getElementById('machine');
+const sendBtn    = document.getElementById('sendBtn');
+const photoInput = document.getElementById('photo');
+const preview    = document.getElementById('preview');
+const retakeBtn  = document.getElementById('retakeBtn');
+const deleteBtn  = document.getElementById('deleteBtn');
 
-const machine =
-document.getElementById("machine");
+if (!canEdit) { machineEl.value = userMachine; machineEl.disabled = true; }
 
-if(!canEditMachine){
-
-  machine.value = userMachine;
-
-  machine.disabled = true;
-
-}
-
-const sendBtn =
-document.getElementById("sendBtn");
-
-const photoInput =
-document.getElementById("photo");
-
-const preview =
-document.getElementById("preview");
-
-const retakeBtn =
-document.getElementById("retakeBtn");
-
-const deleteBtn =
-document.getElementById("deleteBtn");
-
-photoInput.addEventListener("change", ()=>{
-
+photoInput.addEventListener('change', () => {
   const file = photoInput.files[0];
-
-  if(file){
-
-    const reader = new FileReader();
-
-    reader.onload = e=>{
-
-      preview.src = e.target.result;
-
-      preview.style.display="block";
-
-      retakeBtn.style.display="block";
-
-      deleteBtn.style.display="block";
-
-    };
-
-    reader.readAsDataURL(file);
-
-  }
-
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    retakeBtn.style.display = 'block';
+    deleteBtn.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
 });
 
-retakeBtn.onclick = ()=>{
-
-  photoInput.value="";
-
-  preview.style.display="none";
-
-  retakeBtn.style.display="none";
-
-  deleteBtn.style.display="none";
-
+retakeBtn.onclick = () => {
+  photoInput.value = '';
+  preview.style.display = retakeBtn.style.display = deleteBtn.style.display = 'none';
   photoInput.click();
-
 };
 
-deleteBtn.onclick = ()=>{
-
-  photoInput.value="";
-
-  preview.src="";
-
-  preview.style.display="none";
-
-  retakeBtn.style.display="none";
-
-  deleteBtn.style.display="none";
-
+deleteBtn.onclick = () => {
+  photoInput.value = '';
+  preview.src = '';
+  preview.style.display = retakeBtn.style.display = deleteBtn.style.display = 'none';
 };
 
-async function startNotifications(){
-
-  try {
-
-    const permission =
-    await Notification.requestPermission();
-
-    if(permission !== 'granted'){
-
-      console.log("Permission denied");
-
-      return;
-
-    }
-
-    const registration =
-    await navigator.serviceWorker.register(
-      '/firebase-messaging-sw.js'
-    );
-
-    console.log("SW Registered");
-
-    const token =
-    await messaging.getToken({
-
-      vapidKey:
-      'BLeQCahZDRsoXPJUFE3SshG7hMHzqPeVts8SG3b4b526BENvcerNez7htoPy03CQtI1GZYOUBFJd0Ddz1l4biuc',
-
-      serviceWorkerRegistration:
-      registration
-
-    });
-
-    if(!token){
-
-      alert("FCM Token generation failed");
-
-      return;
-
-    }
-
-    console.log("FCM TOKEN:", token);
-
-    await db.collection("tokens")
-    .doc(token)
-    .set({
-
-      token: token,
-
-      user: user || "unknown",
-
-      createdAt: new Date()
-
-    });
-
-    console.log("Notifications Enabled");
-
-    messaging.onMessage(async (payload)=>{
-
-      console.log(payload);
-
-      const registration =
-      await navigator.serviceWorker
-      .getRegistration();
-
-      if(registration){
-
-        registration.showNotification(
-
-          payload.notification.title,
-
-          {
-            body:
-            payload.notification.body,
-
-            icon:'/icon-192.png',
-
-            badge:'/icon-192.png',
-
-            vibrate:[200,100,200]
-
-          }
-
-        );
-
-      }
-
-    });
-
-  } catch(e){
-
-    console.error(e);
-
-  }
-
-}
-
-startNotifications();
-
-async function sendNotificationToAll(
-  title,
-  body
-){
-
-  try {
-
-    const snapshot =
-    await db.collection("tokens").get();
-
-    const sentTokens = new Set();
-
-    for(const docu of snapshot.docs){
-
-      const token =
-      docu.data().token;
-
-      if(sentTokens.has(token))
-      continue;
-
-      sentTokens.add(token);
-
-      try {
-
-        await fetch('/api/notify', {
-
-          method:'POST',
-
-          headers:{
-            'Content-Type':
-            'application/json'
-          },
-
-          body:JSON.stringify({
-
-            title,
-            body,
-            token
-
-          })
-
-        });
-
-      } catch(e){
-
-        console.log("Bad token");
-
-      }
-
-    }
-
-  } catch(e){
-
-    console.error(e);
-
-  }
-
-}
-
-async function sendRequest(){
-
-  const type =
-  document.getElementById("type")
-  .value;
-
-  const desc =
-  document.getElementById("desc")
-  .value;
-
-  const selectedMachine =
-  canEditMachine
-  ? machine.value
-  : userMachine;
-
-  if(!desc.trim()){
-
-    alert("اكتب وصف العطل");
-
-    return;
-
-  }
+async function sendRequest() {
+  const type    = document.getElementById('type').value;
+  const desc    = document.getElementById('desc').value;
+  const machine = canEdit ? machineEl.value : userMachine;
+
+  if (!desc.trim()) { alert('اكتب وصف العطل'); return; }
 
   sendBtn.disabled = true;
-
-  sendBtn.innerText =
-  "جاري الإرسال...";
+  sendBtn.innerText = 'جاري الإرسال...';
 
   try {
-
-    const docRef =
-    await db.collection("requests")
-    .add({
-
-      machine:selectedMachine,
-
-      type:type,
-
-      description:desc,
-
-      image:"",
-
-      time:new Date(),
-
-      status:"open",
-
-      tech:"",
-
-      comment:"",
-
-      user:user
-
+    await db.collection('requests').add({
+      machine, type,
+      description: desc,
+      image: '',
+      time: new Date(),
+      status: 'open',
+      tech: '',
+      comment: '',
+      user
     });
 
-    console.log(
-      "Saved:",
-      docRef.id
-    );
-
+    // ── إشعار لكل المستخدمين ──
     await sendNotificationToAll(
-
-      "طلب صيانة جديد",
-
-      `${user} أضاف طلب صيانة للماكينة ${selectedMachine}`
-
+      db,
+      '🔧 طلب صيانة جديد',
+      `${user} أضاف طلب للماكينة ${machine} — ${type}`
     );
 
-    alert("تم الإرسال ✅");
-
-    document
-    .getElementById("desc")
-    .value="";
-
+    alert('تم الإرسال ✅');
+    document.getElementById('desc').value = '';
     deleteBtn.onclick();
-
-  } catch(e){
-
-    console.error(e);
-
+  } catch(e) {
     alert(e.message);
-
   }
 
   sendBtn.disabled = false;
-
-  sendBtn.innerText = "إرسال";
-
+  sendBtn.innerText = 'إرسال';
 }
 
-sendBtn.addEventListener(
-  "click",
-  sendRequest
-);
-
-window.logout = ()=>{
-
-  localStorage.clear();
-
-  location.href = "index.html";
-
-};
-
+sendBtn.addEventListener('click', sendRequest);
+window.logout = () => { localStorage.clear(); location.href = 'index.html'; };
 </script>
-
 </body>
 </html>

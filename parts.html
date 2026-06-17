@@ -450,43 +450,31 @@ function updateNotifBadge(on) {
 startNotifications();
 
 async function sendNotificationToAll(title, body) {
-
   try {
-
+    // Vercel بيجيب التوكنات هو نفسه من Firestore — مش محتاج token من هنا
     const response = await fetch('/api/notify', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        title,
-        body
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, body })
     });
-
     const result = await response.json();
-
-    console.log(result);
-
+    console.log('[notify] sent:', result);
   } catch (e) {
-
-    console.error(e);
-
+    console.error('[notify] error:', e);
   }
-
 }
-  
+
 
 let allParts = [];
 
 db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
   allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   render();
- // checkReminders();
+  checkReminders();
 });
 
 // تشغيل فحص التذكيرات كل 60 ثانية (تلقائياً)
-// setInterval(checkReminders, 60000);
+setInterval(checkReminders, 60 * 1000); // فحص كل دقيقة
 
 const REMINDER_SENT_KEY = "parts_reminder_sent";
 

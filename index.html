@@ -3,363 +3,88 @@
 <head>
 <meta charset="UTF-8">
 <title>Login</title>
-
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ff0000">
-
 <style>
-body{
-  font-family:Arial;
-  background:#f2f2f2;
-  text-align:center;
-  padding-top:100px;
-}
-
-.box{
-  background:white;
-  padding:20px;
-  width:300px;
-  margin:auto;
-  border-radius:10px;
-}
-
-input{
-  width:100%;
-  padding:10px;
-  margin:10px 0;
-}
-
-button{
-  width:100%;
-  padding:10px;
-  background:blue;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
+body { font-family:Arial; background:#f2f2f2; text-align:center; padding-top:100px; }
+.box { background:white; padding:20px; width:300px; margin:auto; border-radius:10px; }
+input { width:100%; padding:10px; margin:10px 0; }
+button { width:100%; padding:10px; background:blue; color:white; border:none; cursor:pointer; margin-top:4px; }
 </style>
 
-<script src="firebase-notifications.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+<script src="notif-helper.js"></script>
 
 </head>
-
 <body>
 
 <div class="box">
-
 <h2>تسجيل الدخول</h2>
-
 <input id="username" placeholder="Username">
-
 <input id="password" type="password" placeholder="Password">
-
-
-<button onclick="startNotifications()" style="background:#4caf50;margin-bottom:10px;">
-🔔 تفعيل الإشعارات
-</button>
-
-<button id="installBtn" style="background:#673ab7;margin-bottom:10px;display:none;">
-📲 تنزيل التطبيق
-</button>
-
-<button
-onclick="testNotifications()"
-style="background:#ff9800;">
-🧪 اختبار الإشعارات
-</button>
-
-<button onclick="login()">
-دخول
-</button>
-
+<button onclick="login()">دخول</button>
+<button onclick="testLocalNotif()" style="background:#ff9800;">🧪 اختبار محلي</button>
 </div>
 
 <script>
-
-if(localStorage.getItem("role")){
-  location.href = "request.html";
-}
+if (localStorage.getItem('role')) location.href = 'request.html';
 
 const users = [
-
-  {
-    username:"ahmed",
-    password:"1234",
-    role:"admin",
-    machine:"all"
-  },
-
-  {
-    username:"samy",
-    password:"1234",
-    role:"operator",
-    machine:"Line 1"
-  },
-
-  {
-    username:"hany",
-    password:"1234",
-    role:"operator",
-    machine:"Line 2"
-  },
-
-  {
-    username:"alaa",
-    password:"1234",
-    role:"operator",
-    machine:"Line 3"
-  },
-
-  {
-    username:"amr",
-    password:"1234",
-    role:"technician",
-    machine:"all"
-  }
-
+  { username:'ahmed', password:'1234', role:'admin',     machine:'all' },
+  { username:'samy',  password:'1234', role:'operator',  machine:'Line 1' },
+  { username:'hany',  password:'1234', role:'operator',  machine:'Line 2' },
+  { username:'alaa',  password:'1234', role:'operator',  machine:'Line 3' },
+  { username:'amr',   password:'1234', role:'technician',machine:'all' }
 ];
 
 const firebaseConfig = {
-
-  apiKey: "AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E",
-
-  authDomain: "maintenance-nahda.firebaseapp.com",
-
-  projectId: "maintenance-nahda",
-
-  storageBucket: "maintenance-nahda.firebasestorage.app",
-
-  messagingSenderId: "1055981144653",
-
-  appId: "1:1055981144653:web:cecf0a83969248f7d12a04"
-
+  apiKey:            'AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E',
+  authDomain:        'maintenance-nahda.firebaseapp.com',
+  projectId:         'maintenance-nahda',
+  storageBucket:     'maintenance-nahda.firebasestorage.app',
+  messagingSenderId: '1055981144653',
+  appId:             '1:1055981144653:web:cecf0a83969248f7d12a04'
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const db = firebase.firestore();
 
-const messaging = firebase.messaging();
+// تفعيل FCM فور فتح الصفحة
+initFCM(db);
 
-function login(){
-
-  let u =
-  document.getElementById("username")
-  .value.trim()
-  .toLowerCase();
-
-  let p =
-  document.getElementById("password")
-  .value.trim();
-
-  let user =
-  users.find(x =>
-    x.username === u &&
-    x.password === p
-  );
-
-  if(!user){
-
-    alert("بيانات غلط ❌");
-
-    return;
-
-  }
-
-  localStorage.setItem("user", user.username);
-
-  localStorage.setItem("role", user.role);
-
-  localStorage.setItem("machine", user.machine);
-
-  location.href = "request.html";
-
+function login() {
+  const u = document.getElementById('username').value.trim().toLowerCase();
+  const p = document.getElementById('password').value.trim();
+  const user = users.find(x => x.username === u && x.password === p);
+  if (!user) { alert('بيانات غلط ❌'); return; }
+  localStorage.setItem('user', user.username);
+  localStorage.setItem('role', user.role);
+  localStorage.setItem('machine', user.machine);
+  location.href = 'request.html';
 }
 
-document.querySelectorAll("input")
-.forEach(input=>{
+document.querySelectorAll('input').forEach(inp =>
+  inp.addEventListener('keypress', e => { if (e.key === 'Enter') login(); })
+);
 
-  input.addEventListener("keypress", e=>{
-
-    if(e.key === "Enter"){
-
-      login();
-
-    }
-
+async function testLocalNotif() {
+  const reg = await navigator.serviceWorker.getRegistration();
+  if (!reg) { alert('Service Worker مش مسجّل'); return; }
+  reg.showNotification('🧪 اختبار محلي', {
+    body: 'الإشعارات المحلية شغّالة ✅',
+    icon: '/icon-192.png',
+    vibrate: [200,100,200]
   });
-
-});
-
-async function startNotifications(){
-
-  try {
-
-    const permission =
-    await Notification.requestPermission();
-
-    if(permission !== "granted"){
-
-      alert("اسمح بالإشعارات");
-
-      return;
-
-    }
-
-    const registration =
-    await navigator.serviceWorker.register(
-      "./firebase-messaging-sw.js"
-    );
-
-    console.log("SW Registered");
-
-    const token =
-    await messaging.getToken({
-
-      vapidKey:
-      "BLeQCahZDRsoXPJUFE3SshG7hMHzqPeVts8SG3b4b526BENvcerNez7htoPy03CQtI1GZYOUBFJd0Ddz1l4biuc",
-
-      serviceWorkerRegistration:
-      registration
-
-    });
-
-    console.log("TOKEN:", token);
-
-    if(!token){
-
-      alert("فشل إنشاء التوكن");
-
-      return;
-
-    }
-
-    await db.collection("tokens")
-    .doc(token)
-    .set({
-
-      token: token,
-
-      user:
-      localStorage.getItem("user")
-      || "guest",
-
-      createdAt: new Date()
-
-    });
-
-    console.log("Notifications Enabled");
-
-    messaging.onMessage(async (payload)=>{
-
-      console.log(payload);
-
-      const registration =
-      await navigator.serviceWorker.getRegistration();
-
-      if(registration){
-
-        registration.showNotification(
-
-          payload.notification.title,
-
-          {
-            body:
-            payload.notification.body,
-
-            icon:'/icon-192.png',
-
-            badge:'/icon-192.png',
-
-            vibrate:[200,100,200]
-          }
-
-        );
-
-      }
-
-    });
-
-  } catch(e){
-
-    console.error(e);
-
-    alert(e.message);
-
-  }
-
 }
 
-startNotifications();
-
-async function testNotifications(){
-
-  try {
-
-    const registration =
-    await navigator.serviceWorker.getRegistration();
-
-    if(!registration){
-
-      alert("Service Worker غير مسجل");
-
-      return;
-
-    }
-
-    await registration.showNotification(
-
-      "🧪 اختبار الإشعارات",
-
-      {
-        body:"الإشعارات تعمل بنجاح ✅",
-        icon:"/icon-192.png",
-        badge:"/icon-192.png",
-        vibrate:[200,100,200]
-      }
-
-    );
-
-    alert("تم إرسال إشعار الاختبار");
-
-  } catch(e){
-
-    console.error(e);
-
-    alert(e.message);
-
-  }
-
-}
-
-</script>
-
-
-<script>
+// install PWA
 let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt', (e) => {
+window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
-  const btn = document.getElementById('installBtn');
-  if(btn) btn.style.display = 'block';
-});
-
-document.addEventListener('click', async (e) => {
-  if(e.target && e.target.id === 'installBtn' && deferredPrompt){
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    e.target.style.display = 'none';
-  }
 });
 </script>
 </body>
-
 </html>
