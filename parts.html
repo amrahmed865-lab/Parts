@@ -450,21 +450,31 @@ function updateNotifBadge(on) {
 startNotifications();
 
 async function sendNotificationToAll(title, body) {
-  try {
-    const snapshot  = await db.collection("tokens").get();
-    const sentTokens = new Set();
 
-    for (const docu of snapshot.docs) {
-      const token = docu.data().token;
-      if (sentTokens.has(token)) continue;
-      sentTokens.add(token);
-      try {
-        await fetch('/api/notify', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title, body })
-      } catch(e) {}
-    }
+  try {
+
+    const response = await fetch('/api/notify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title,
+        body
+      })
+    });
+
+    const result = await response.json();
+
+    console.log("Notification sent:", result);
+
+  } catch (e) {
+
+    console.error("Notification Error:", e);
+
+  }
+
+}
   
 
 let allParts = [];
