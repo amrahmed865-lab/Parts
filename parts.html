@@ -462,8 +462,10 @@ async function sendNotificationToAll(title, body) {
         await fetch('/api/notify', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ title, body, token })
-        });
+          body: JSON.stringify({
+  title,
+  body
+})
       } catch(e) {}
     }
   } catch(e) {}
@@ -474,11 +476,11 @@ let allParts = [];
 db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
   allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   render();
-  checkReminders();
+ // checkReminders();
 });
 
 // تشغيل فحص التذكيرات كل 60 ثانية (تلقائياً)
-setInterval(checkReminders, 60000);
+// setInterval(checkReminders, 60000);
 
 const REMINDER_SENT_KEY = "parts_reminder_sent";
 
