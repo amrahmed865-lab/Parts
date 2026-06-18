@@ -31,12 +31,12 @@ function getDeadline(part) {
   return deadline;
 }
 
-export default async function handler(req, res) {
+//export default async function handler(req, res) {
   // Vercel Cron بيبعت GET — نتأكد إن الـ request من Vercel
-  const authHeader = req.headers['authorization'];
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  //const authHeader = req.headers['authorization'];
+  //if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  //return res.status(401).json({ error: 'Unauthorized' });
+  //}
 
   try {
     const db   = getFirestore();
