@@ -19,7 +19,8 @@ async function initFCM(db) {
     if (!token) return;
 
     const user = localStorage.getItem('user') || 'unknown';
-    await db.collection('tokens').doc(token).set({ token, user, createdAt: new Date() });
+    // احفظ بـ user كـ ID عشان كل يوزر يفضل عنده token واحد بس
+    await db.collection('tokens').doc(user).set({ token, user, createdAt: new Date() });
 
     console.log('[FCM] Token saved:', token.slice(0, 20) + '...');
 
