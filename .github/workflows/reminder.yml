@@ -1,0 +1,15 @@
+name: Check Reminders
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # كل 30 دقيقة
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call Reminder API
+        run: |
+          curl -L https://parts-swart.vercel.app/api/check-reminders
