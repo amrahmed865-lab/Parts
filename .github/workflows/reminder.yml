@@ -2,7 +2,7 @@ name: Check Reminders
 
 on:
   schedule:
-    - cron: '*/0 * * * *'   # كل 30 دقيقة
+    - cron: '*/1 * * * *'   # كل 30 دقيقة
   workflow_dispatch:
 
 jobs:
