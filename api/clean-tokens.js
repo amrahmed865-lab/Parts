@@ -1,6 +1,5 @@
 import { initializeApp, cert, getApps } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { getMessaging } from "firebase-admin/messaging";
 
 if (!getApps().length) {
   initializeApp({
@@ -19,45 +18,37 @@ export default async function handler(req, res) {
     const db   = getFirestore();
     const snap = await db.collection('tokens').get();
 
-    const all = [];
-    snap.forEach(d => all.push({ ref: d.ref, ...d.data() }));
-
-    console.log('[clean] total tokens:', all.length);
-
-    if (all.length === 0) return res.json({ deleted: 0, kept: 0 });
-
-    // تحقق من كل token إنه لسه valid
-    const tokens    = all.map(t => t.token).filter(Boolean);
-    const response  = await getMessaging().sendEachForMulticast({
-      tokens,
-      data: { ping: '1' } // مش notification — بس للتحقق
+    // جمّع التوكنات لكل يوزر
+    const byUser = {};
+    snap.forEach(doc => {
+      const data = doc.data();
+      const user = data.user || 'unknown';
+      if (!byUser[user]) byUser[user] = [];
+      byUser[user].push({ ref: doc.ref, createdAt: data.createdAt?.toMillis?.() || 0 });
     });
 
-    const batch    = db.batch();
-    let deleted    = 0;
-    let kept       = 0;
+    const batch = db.batch();
+    let deleted = 0;
+    let kept    = 0;
 
-    response.responses.forEach((r, i) => {
-      const errCode = r.error?.code;
-      const isDead  =
-        errCode === 'messaging/registration-token-not-registered' ||
-        errCode === 'messaging/invalid-registration-token';
-
-      if (isDead) {
-        console.log('[clean] deleting dead token:', tokens[i].slice(0, 20) + '...');
-        batch.delete(all[i].ref);
-        deleted++;
-      } else {
-        kept++;
-      }
-    });
+    for (const user in byUser) {
+      const tokens = byUser[user];
+      // رتّب من الأحدث للأقدم
+      tokens.sort((a, b) => b.createdAt - a.createdAt);
+      // سيب الأول (الأحدث) وامسح الباقي
+      tokens.forEach((t, i) => {
+        if (i === 0) { kept++; }
+        else         { batch.delete(t.ref); deleted++; }
+      });
+    }
 
     await batch.commit();
 
-    return res.json({ success: true, deleted, kept, total: all.length });
+    console.log('[clean-tokens] kept:', kept, 'deleted:', deleted);
+    return res.json({ success: true, kept, deleted });
 
   } catch(e) {
-    console.error('[clean] error:', e.message);
+    console.error('[clean-tokens] error:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
