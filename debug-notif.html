@@ -51,6 +51,13 @@ pre { background: #22263a; padding: 12px; border-radius: 8px; font-size: 12px; o
   <pre id="notifyResult">—</pre>
 </div>
 
+<div class="card">
+  <div class="label">٦ — تنظيف التوكنات القديمة</div>
+  <p style="font-size:13px;color:#7b82a0;margin-bottom:10px;">لو بيجيلك الإشعار أكتر من مرة، اضغط هنا تمسح التوكنات الميتة</p>
+  <button onclick="cleanTokens()">🧹 تنظيف التوكنات</button>
+  <pre id="cleanResult">—</pre>
+</div>
+
 <script>
 const firebaseConfig = {
   apiKey:            'AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E',
@@ -157,6 +164,18 @@ async function testNotify() {
 }
 
 runDebug();
+
+async function cleanTokens() {
+  const pre = document.getElementById('cleanResult');
+  pre.textContent = '⏳ جاري التنظيف...';
+  try {
+    const res  = await fetch('/api/clean-tokens', { method: 'POST' });
+    const json = await res.json();
+    pre.textContent = JSON.stringify(json, null, 2);
+  } catch(e) {
+    pre.textContent = '❌ ' + e.message;
+  }
+}
 </script>
 </body>
 </html>
