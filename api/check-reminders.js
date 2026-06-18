@@ -40,6 +40,10 @@ function getDeadline(part) {
 }
 
 export default async function handler(req, res) {
+  return res.status(200).json({
+    test: "AMR TEST 123"
+  });
+
   try {
     const db = getFirestore();
     const snap = await db.collection("parts").get();
