@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Call Reminder API
         run: |
-          curl -L https://vt.tiktok.com/ZSQWyd27h/
+          curl -L https://parts-swart.vercel.app/api/check-reminders
