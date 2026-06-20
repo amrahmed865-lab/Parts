@@ -124,7 +124,7 @@ for (const part of toNotify) {
         badge: "/icon-192.png"  
       },  
       fcmOptions: {  
-        link: "/parts.html"  
+        link: "parts.html?part=${part.id}"  
       }  
     }  
   });  
