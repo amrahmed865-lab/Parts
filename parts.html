@@ -562,7 +562,11 @@ async function updateStage(partId) {
       `${STAGES[newStage].icon} قطعة غيار: ${STAGES[newStage].label}`,
       `${part.name} — ${part.machine} — حدّثها ${currentUser}`
     );
-    document.getElementById("inp_note_" + partId).value = "";
+    const noteInput = document.getElementById("inp_note_" + partId);
+
+if (noteInput) {
+  noteInput.value = "";
+}
     showToast("تم التحديث ✅");
   } catch(e) {
     showToast("خطأ: " + e.message, true);
