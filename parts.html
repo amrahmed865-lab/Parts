@@ -716,6 +716,24 @@ function showToast(msg, isError = false) {
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 3000);
 }
+  window.addEventListener("load", () => {
+  const params = new URLSearchParams(window.location.search);
+  const partId = params.get("part");
+
+  if (!partId) return;
+
+  setTimeout(() => {
+    const card = document.getElementById("card_" + partId);
+
+    if (card) {
+      card.classList.add("expanded");
+      card.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
+    }
+  }, 1500);
+});
 </script>
 </body>
 </html>
