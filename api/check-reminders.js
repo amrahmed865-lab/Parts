@@ -112,7 +112,10 @@ for (const part of toNotify) {
       title: "⚠️ قطعة غيار تعدّت المدة!",  
       body: `${part.name} - ${part.machine} - بقالها ${daysPassed} يوم برّا المصنع`  
     },  
-    webpush: {  
+    webpush: { 
+      data: {
+  partId: part.id
+},
       headers: {  
         TTL: "86400",  
         Urgency: "high"  
