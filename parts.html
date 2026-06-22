@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>تتبع قطع الغيار</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff0000">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -80,9 +82,25 @@ body {
   padding: 4px 10px;
   border-radius: 20px;
   font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
 }
 .notif-on  { background: #22c55e22; color: #22c55e; border: 1px solid #22c55e44; }
 .notif-off { background: #ef444422; color: #ef4444; border: 1px solid #ef444444; }
+
+.install-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-weight: 600;
+  border: 1px solid #6366f144;
+  background: #6366f122;
+  color: #6366f1;
+  cursor: pointer;
+  font-family: inherit;
+}
+.install-btn:hover { background: #6366f133; }
 
 .main { padding: 20px; max-width: 1100px; margin: 0 auto; }
 
@@ -278,7 +296,8 @@ select option { background: var(--surface2); }
 <div class="header">
   <div class="header-title">🔩 تتبع قطع الغيار</div>
   <div class="header-nav">
-    <span class="notif-status notif-off" id="notifBadge">🔕 إشعارات</span>
+    <button class="notif-status notif-off" id="notifBadge" onclick="toggleNotifications()">🔕 إشعارات</button>
+    <button class="install-btn" id="installBtn" onclick="installApp()" style="display:none;">📲 تثبيت التطبيق</button>
     <a href="#" class="btn-nav" onclick="goRequests(event)">📋 طلبات</a>
     <a href="#" class="btn-nav" onclick="goDashboard(event)">📊 لوحة التحكم</a>
     <button class="btn-nav" onclick="logout()">خروج</button>
@@ -466,7 +485,62 @@ function updateNotifBadge(on) {
   else    { b.textContent = "🔕 إشعارات";        b.className = "notif-status notif-off"; }
 }
 
-startNotifications();
+// ── تشغيل تلقائي عند تحميل الصفحة لو الإذن متاح بالفعل ──
+if (Notification.permission === 'granted') {
+  startNotifications();
+} else {
+  updateNotifBadge(false);
+}
+
+async function toggleNotifications() {
+  if (Notification.permission === 'granted') {
+    alert('الإشعارات مفعّلة بالفعل ✅\nلإيقافها تماماً، لازم توقفها من إعدادات المتصفح/الجهاز.');
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    alert('الإشعارات متوقفة من إعدادات المتصفح/الجهاز ❌\nلازم تفعّلها من هناك أولاً.');
+    return;
+  }
+
+  const wantsToEnable = confirm('عايز تفعّل الإشعارات لطلبات الصيانة وقطع الغيار؟');
+  if (!wantsToEnable) return;
+
+  await startNotifications();
+}
+
+// ── تثبيت التطبيق (PWA) ──
+let deferredInstallPrompt = null;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.style.display = 'inline-block';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  installBtn.style.display = 'none';
+});
+
+// لو التطبيق شغال بالفعل كـ PWA مثبتة، اخفي الزرار
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+  installBtn.style.display = 'none';
+}
+
+async function installApp() {
+  if (!deferredInstallPrompt) {
+    alert('التثبيت غير متاح دلوقتي من المتصفح ده.\nجرّب من قائمة المتصفح: "إضافة إلى الشاشة الرئيسية" أو "تثبيت التطبيق".');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') {
+    installBtn.style.display = 'none';
+  }
+  deferredInstallPrompt = null;
+}
 
 async function sendNotificationToAll(title, body) {
   try {

@@ -1,7 +1,7 @@
 {
   "name": "Maintenance",
   "short_name": "Maintenance",
-  "start_url": "/request.html",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ff0000",
