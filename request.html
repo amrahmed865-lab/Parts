@@ -43,7 +43,7 @@ button { background:red; color:white; padding:15px; border:none; width:100%; mar
 <button id="deleteBtn" style="display:none;background:#555;">حذف الصورة</button>
 <button id="sendBtn">إرسال</button>
 
-<a href="dashboard.html"><button style="background:blue;">عرض الطلبات</button></a>
+<a href="#" onclick="goDashboard(event)"><button style="background:blue;">عرض الطلبات</button></a>
 <a href="parts.html"><button style="background:#6366f1;">🔩 تتبع قطع الغيار</button></a>
 </div>
 
@@ -151,6 +151,15 @@ async function sendRequest() {
 
 sendBtn.addEventListener('click', sendRequest);
 window.logout = () => { localStorage.clear(); location.href = 'index.html'; };
+
+function goDashboard(e) {
+  e.preventDefault();
+  if (!DASHBOARD_ENABLED) {
+    alert('لوحة التحكم متوقفة مؤقتاً ⏸️');
+    return;
+  }
+  location.href = 'dashboard.html';
+}
 </script>
 </body>
 </html>

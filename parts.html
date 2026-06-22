@@ -280,7 +280,7 @@ select option { background: var(--surface2); }
   <div class="header-nav">
     <span class="notif-status notif-off" id="notifBadge">🔕 إشعارات</span>
     <a href="#" class="btn-nav" onclick="goRequests(event)">📋 طلبات</a>
-    <a href="dashboard.html" class="btn-nav">📊 لوحة التحكم</a>
+    <a href="#" class="btn-nav" onclick="goDashboard(event)">📊 لوحة التحكم</a>
     <button class="btn-nav" onclick="logout()">خروج</button>
   </div>
 </div>
@@ -391,6 +391,15 @@ function goRequests(e) {
     return;
   }
   location.href = 'request.html';
+}
+
+function goDashboard(e) {
+  e.preventDefault();
+  if (!DASHBOARD_ENABLED) {
+    alert('لوحة التحكم متوقفة مؤقتاً ⏸️');
+    return;
+  }
+  location.href = 'dashboard.html';
 }
 if (!canEdit) document.getElementById("addSection").style.display = "none";
 
