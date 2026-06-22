@@ -4,4 +4,4 @@
 
 // لإيقاف صفحة الطلبات مؤقتاً: REQUESTS_ENABLED = false
 // لإعادة تشغيلها: REQUESTS_ENABLED = true
-const REQUESTS_ENABLED = false;
+const REQUESTS_ENABLED = true;
