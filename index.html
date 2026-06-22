@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 <script src="notif-helper.js"></script>
@@ -139,15 +140,7 @@ button:hover { opacity: .9; }
 </div>
 
 <script>
-if (localStorage.getItem('role')) location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
-
-const users = [
-  { username:'ahmed', password:'1234', role:'admin',     machine:'all' },
-  { username:'samy',  password:'1234', role:'operator',  machine:'Line 1' },
-  { username:'hany',  password:'1234', role:'operator',  machine:'Line 2' },
-  { username:'alaa',  password:'1234', role:'operator',  machine:'Line 3' },
-  { username:'amr',   password:'1234', role:'technician',machine:'all' }
-];
+const EMAIL_DOMAIN = '@nahdetmisr.com';
 
 const firebaseConfig = {
   apiKey:            'AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E',
@@ -159,20 +152,62 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db   = firebase.firestore();
+const auth = firebase.auth();
 
 // تفعيل FCM فور فتح الصفحة
 initFCM(db);
 
-function login() {
+// لو فيه جلسة فايربيز حقيقية شغالة بالفعل، حوّل مباشرة بدون ما تطلب تسجيل دخول تاني
+auth.onAuthStateChanged(user => {
+  if (user && localStorage.getItem('role')) {
+    location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
+  }
+});
+
+async function login() {
+  const loginBtn = document.querySelector('.btn-login');
   const u = document.getElementById('username').value.trim().toLowerCase();
   const p = document.getElementById('password').value.trim();
-  const user = users.find(x => x.username === u && x.password === p);
-  if (!user) { alert('بيانات غلط ❌'); return; }
-  localStorage.setItem('user', user.username);
-  localStorage.setItem('role', user.role);
-  localStorage.setItem('machine', user.machine);
-  location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
+
+  if (!u || !p) { alert('اكتب اسم المستخدم وكلمة المرور ❌'); return; }
+
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'بيدخل...';
+
+  try {
+    const email = u.includes('@') ? u : u + EMAIL_DOMAIN;
+    const cred = await auth.signInWithEmailAndPassword(email, p);
+    const uid = cred.user.uid;
+
+    // جيب الدور والماكينة من Firestore (مفيش كلمة سر هنا خالص)
+    const userDoc = await db.collection('users').doc(uid).get();
+
+    if (!userDoc.exists) {
+      alert('الحساب موجود بس مفيش بيانات صلاحيات مرتبطة بيه. كلّم المسؤول.');
+      await auth.signOut();
+      return;
+    }
+
+    const data = userDoc.data();
+    localStorage.setItem('user', data.username || u);
+    localStorage.setItem('role', 'user');
+    localStorage.setItem('machine', data.machine || 'all');
+    location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
+
+  } catch (e) {
+    console.error(e);
+    if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+      alert('بيانات غلط ❌');
+    } else if (e.code === 'auth/too-many-requests') {
+      alert('محاولات كتير غلط، حاول تاني بعد شوية ⏳');
+    } else {
+      alert('حصل خطأ غير متوقع، جرّب تاني');
+    }
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'دخول';
+  }
 }
 
 document.querySelectorAll('input').forEach(inp =>

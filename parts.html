@@ -12,6 +12,7 @@
 
 <!-- Firebase v8 compat -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 <script src="app-config.js"></script>
@@ -383,14 +384,35 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db        = firebase.firestore();
-const messaging = firebase.messaging();
+const db   = firebase.firestore();
+const auth = firebase.auth();
+
+let messaging = null;
+try {
+  messaging = firebase.messaging();
+} catch (e) {
+  console.warn('Firebase Messaging غير مدعوم على هذا المتصفح:', e.message);
+}
 
 const currentUser = localStorage.getItem("user");
 const role        = localStorage.getItem("role");
 const canEdit     = (currentUser === "ahmed" || currentUser === "amr");
 
-if (!currentUser) location.href = "index.html";
+if (!currentUser) {
+  location.href = "index.html";
+  throw new Error("NOT_LOGGED_IN"); // وقف تنفيذ باقي الكود فوراً
+}
+
+// تأكيد حقيقي من فايربيز إن فيه جلسة دخول صحيحة قبل أي تعامل مع قاعدة البيانات
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    // مفيش جلسة فايربيز حقيقية، رغم وجود بيانات في localStorage
+    localStorage.clear();
+    location.href = "index.html";
+    return;
+  }
+  startApp();
+});
 
 function goRequests(e) {
   e.preventDefault();
@@ -426,6 +448,12 @@ const OUTSIDE_STAGES = new Set([0, 1]);
 
 async function startNotifications() {
   try {
+    if (!messaging) {
+      console.log("الإشعارات غير مدعومة على هذا المتصفح");
+      updateNotifBadge(false);
+      return;
+    }
+
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
       console.log("Permission denied");
@@ -475,7 +503,7 @@ function updateNotifBadge(on) {
 }
 
 // ── تشغيل تلقائي عند تحميل الصفحة (زي الأصل): يطلب الإذن مباشرة ──
-startNotifications();
+// (بيتم استدعاؤها من جوه startApp() بعد تأكيد تسجيل الدخول)
 
 async function toggleNotifications() {
   if (Notification.permission === 'granted') {
@@ -546,10 +574,14 @@ async function sendNotificationToAll(title, body) {
 
 let allParts = [];
 
-db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
-  allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  render();
-});
+function startApp() {
+  startNotifications();
+
+  db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
+    allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  });
+}
 
 // تشغيل فحص التذكيرات كل 60 ثانية (تلقائياً)
 

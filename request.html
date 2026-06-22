@@ -14,6 +14,7 @@ button { background:red; color:white; padding:15px; border:none; width:100%; mar
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 <script src="notif-helper.js"></script>
@@ -55,7 +56,10 @@ const role        = localStorage.getItem('role');
 const userMachine = localStorage.getItem('machine');
 const canEdit     = (user === 'ahmed' || user === 'amr');
 
-if (!role) location.href = 'index.html';
+if (!role) {
+  location.href = 'index.html';
+  throw new Error('NOT_LOGGED_IN'); // وقف تنفيذ باقي الكود فوراً
+}
 if (!REQUESTS_ENABLED) {
   alert('خدمة طلبات الصيانة متوقفة مؤقتاً ⏸️');
   location.href = 'parts.html';
@@ -72,7 +76,8 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const db   = firebase.firestore();
+const auth = firebase.auth();
 
 // ── تفعيل FCM فور الدخول ──
 initFCM(db);
@@ -85,6 +90,17 @@ const retakeBtn  = document.getElementById('retakeBtn');
 const deleteBtn  = document.getElementById('deleteBtn');
 
 if (!canEdit) { machineEl.value = userMachine; machineEl.disabled = true; }
+
+// منع الإرسال لحد ما نتأكد من جلسة فايربيز حقيقية
+sendBtn.disabled = true;
+auth.onAuthStateChanged(fbUser => {
+  if (!fbUser) {
+    localStorage.clear();
+    location.href = 'index.html';
+    return;
+  }
+  sendBtn.disabled = false;
+});
 
 photoInput.addEventListener('change', () => {
   const file = photoInput.files[0];

@@ -131,6 +131,7 @@ const userMachine = localStorage.getItem("machine");
 
 if(!user){
   location.href = "index.html";
+  throw new Error("NOT_LOGGED_IN"); // وقف تنفيذ باقي الكود فوراً
 }
 
 // 👇 صلاحيات التعديل
