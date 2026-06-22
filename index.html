@@ -1,16 +1,14 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>تسجيل الدخول</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ff0000">
-<style>
-body { font-family:Arial; background:#f2f2f2; text-align:center; padding-top:100px; }
-.box { background:white; padding:20px; width:300px; margin:auto; border-radius:10px; }
-input { width:100%; padding:10px; margin:10px 0; }
-button { width:100%; padding:10px; background:blue; color:white; border:none; cursor:pointer; margin-top:4px; }
-</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -18,15 +16,126 @@ button { width:100%; padding:10px; background:blue; color:white; border:none; cu
 <script src="notif-helper.js"></script>
 <script src="app-config.js"></script>
 
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3250;
+  --accent: #f59e0b;
+  --accent2: #3b82f6;
+  --text: #e8eaf0;
+  --muted: #7b82a0;
+  --danger: #ef4444;
+  --success: #22c55e;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Cairo', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.login-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.field { margin-bottom: 14px; }
+
+input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-family: 'Cairo', Arial, sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .2s;
+}
+input:focus { border-color: var(--accent); }
+input::placeholder { color: var(--muted); }
+
+button {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Cairo', Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  transition: opacity .2s;
+}
+button:hover { opacity: .9; }
+
+.btn-login {
+  background: var(--accent);
+  color: #1a1d27;
+  margin-top: 6px;
+}
+
+.btn-test {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  margin-top: 10px;
+  font-weight: 600;
+  font-size: 12px;
+}
+</style>
+
 </head>
 <body>
 
-<div class="box">
-<h2>تسجيل الدخول</h2>
-<input id="username" placeholder="Username">
-<input id="password" type="password" placeholder="Password">
-<button onclick="login()">دخول</button>
-<button onclick="testLocalNotif()" style="background:#ff9800;">🧪 اختبار محلي</button>
+<div class="login-card">
+  <div class="login-title">🔧 تسجيل الدخول</div>
+
+  <div class="field">
+    <label>اسم المستخدم</label>
+    <input id="username" placeholder="Username">
+  </div>
+
+  <div class="field">
+    <label>كلمة المرور</label>
+    <input id="password" type="password" placeholder="Password">
+  </div>
+
+  <button class="btn-login" onclick="login()">دخول</button>
+  <button class="btn-test" onclick="testLocalNotif()">🧪 اختبار محلي</button>
 </div>
 
 <script>
