@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
+<script src="app-config.js"></script>
 
 <style>
 :root {
@@ -278,7 +279,7 @@ select option { background: var(--surface2); }
   <div class="header-title">🔩 تتبع قطع الغيار</div>
   <div class="header-nav">
     <span class="notif-status notif-off" id="notifBadge">🔕 إشعارات</span>
-    <a href="request.html" class="btn-nav">📋 طلبات</a>
+    <a href="#" class="btn-nav" onclick="goRequests(event)">📋 طلبات</a>
     <a href="dashboard.html" class="btn-nav">📊 لوحة التحكم</a>
     <button class="btn-nav" onclick="logout()">خروج</button>
   </div>
@@ -382,6 +383,15 @@ const role        = localStorage.getItem("role");
 const canEdit     = (currentUser === "ahmed" || currentUser === "amr");
 
 if (!currentUser) location.href = "index.html";
+
+function goRequests(e) {
+  e.preventDefault();
+  if (!REQUESTS_ENABLED) {
+    alert('خدمة طلبات الصيانة متوقفة مؤقتاً ⏸️');
+    return;
+  }
+  location.href = 'request.html';
+}
 if (!canEdit) document.getElementById("addSection").style.display = "none";
 
 function logout() { localStorage.clear(); location.href = "index.html"; }

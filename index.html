@@ -16,6 +16,7 @@ button { width:100%; padding:10px; background:blue; color:white; border:none; cu
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 <script src="notif-helper.js"></script>
+<script src="app-config.js"></script>
 
 </head>
 <body>
@@ -29,7 +30,7 @@ button { width:100%; padding:10px; background:blue; color:white; border:none; cu
 </div>
 
 <script>
-if (localStorage.getItem('role')) location.href = 'request.html';
+if (localStorage.getItem('role')) location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
 
 const users = [
   { username:'ahmed', password:'1234', role:'admin',     machine:'all' },
@@ -62,7 +63,7 @@ function login() {
   localStorage.setItem('user', user.username);
   localStorage.setItem('role', user.role);
   localStorage.setItem('machine', user.machine);
-  location.href = 'request.html';
+  location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
 }
 
 document.querySelectorAll('input').forEach(inp =>
