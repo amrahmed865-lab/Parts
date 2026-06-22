@@ -529,11 +529,12 @@ async function installApp() {
 
 async function sendNotificationToAll(title, body) {
   try {
+    const RLM = '\u200F'; // علامة RTL لضبط اتجاه القراءة في الإشعار
     // Vercel بيجيب التوكنات هو نفسه من Firestore — مش محتاج token من هنا
     const response = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body })
+      body: JSON.stringify({ title: RLM + title, body: RLM + body })
     });
     const result = await response.json();
     console.log('[notify] sent:', result);

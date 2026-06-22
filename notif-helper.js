@@ -43,10 +43,11 @@ async function initFCM(db) {
 // ── بيبعت إشعار — Vercel بيجيب التوكنات هو نفسه ──
 async function sendNotificationToAll(db, title, body) {
   try {
+    const RLM = '\u200F'; // علامة RTL لضبط اتجاه القراءة في الإشعار
     const response = await fetch('/api/notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, body })
+      body: JSON.stringify({ title: RLM + title, body: RLM + body })
     });
     const result = await response.json();
     console.log('[FCM] notify result:', result);
