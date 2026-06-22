@@ -298,8 +298,8 @@ select option { background: var(--surface2); }
   <div class="header-nav">
     <button class="notif-status notif-off" id="notifBadge" onclick="toggleNotifications()">🔕 إشعارات</button>
     <button class="install-btn" id="installBtn" onclick="installApp()" style="display:none;">📲 تثبيت التطبيق</button>
-    <a href="#" class="btn-nav" onclick="goRequests(event)">📋 طلبات الصيانة</a>
-    <a href="#" class="btn-nav" onclick="goDashboard(event)">📊 Dashboared</a>
+    <a href="#" class="btn-nav" onclick="goRequests(event)">📋 طلبات</a>
+    <a href="#" class="btn-nav" onclick="goDashboard(event)">📊 لوحة التحكم</a>
     <button class="btn-nav" onclick="logout()">خروج</button>
   </div>
 </div>
@@ -319,14 +319,7 @@ select option { background: var(--surface2); }
       </div>
       <div>
         <label>الماكينة *</label>
-        <select id="partMachine">
-          <option>Web 7</option>
-          <option>Web 8</option>
-          <option>Web 9</option>
-          <option>Line 1</option>
-          <option>Line 2</option>
-          <option>Line 3</option>
-        </select>
+        <input id="partMachine" placeholder="مثال: Web 7" />
       </div>
       <div>
         <label>مركز الإصلاح الخارجي</label>
@@ -366,11 +359,7 @@ select option { background: var(--surface2); }
       <option value="4">🛡️ في الضمان</option>
       <option value="5">✅ مكتملة</option>
     </select>
-    <select id="filterMachine" onchange="render()">
-      <option value="all">كل الماكينات</option>
-      <option>Web 7</option><option>Web 8</option><option>Web 9</option>
-      <option>Line 1</option><option>Line 2</option><option>Line 3</option>
-    </select>
+    <input type="text" id="filterMachine" placeholder="🔍 فلتر بالماكينة..." oninput="render()" />
     <input type="text" id="filterSearch" placeholder="🔍 ابحث باسم القطعة..." oninput="render()" />
     <span class="count-badge" id="countBadge">— قطعة</span>
   </div>
@@ -485,12 +474,8 @@ function updateNotifBadge(on) {
   else    { b.textContent = "🔕 إشعارات";        b.className = "notif-status notif-off"; }
 }
 
-// ── تشغيل تلقائي عند تحميل الصفحة لو الإذن متاح بالفعل ──
-if (Notification.permission === 'granted') {
-  startNotifications();
-} else {
-  updateNotifBadge(false);
-}
+// ── تشغيل تلقائي عند تحميل الصفحة (زي الأصل): يطلب الإذن مباشرة ──
+startNotifications();
 
 async function toggleNotifications() {
   if (Notification.permission === 'granted') {
@@ -617,9 +602,10 @@ async function addPart() {
     });
 
     const unitAr = reminderUnit === 'minutes' ? 'دقيقة' : (reminderUnit === 'hours' ? 'ساعة' : 'يوم');
+    const centerText = center ? ` لشركة ${center}` : '';
     await sendNotificationToAll(
       "📤 قطعة غيار خرجت للإصلاح",
-      `${name} — ${machine} — أرسلها ${currentUser} | تذكير بعد ${reminderValue} ${unitAr}`
+      `${currentUser} ارسل ${name} خاص ب ${machine}${centerText} | تذكير بعد ${reminderValue} ${unitAr}`
     );
 
     ["partName","partSerial","partCenter","partNote"].forEach(id => document.getElementById(id).value = "");
@@ -653,7 +639,7 @@ async function updateStage(partId) {
     await db.collection("parts").doc(partId).update({ stage: newStage, history, updatedAt: now });
     await sendNotificationToAll(
       `${STAGES[newStage].icon} قطعة غيار: ${STAGES[newStage].label}`,
-      `${part.name} — ${part.machine} — حدّثها ${currentUser}`
+      `${currentUser} حدّث ${part.name} خاص ب ${part.machine}`
     );
     const noteInput = document.getElementById("inp_note_" + partId);
 
@@ -668,12 +654,12 @@ if (noteInput) {
 
 function render() {
   const stageFilter   = document.getElementById("filterStage").value;
-  const machineFilter = document.getElementById("filterMachine").value;
+  const machineFilter = document.getElementById("filterMachine").value.trim().toLowerCase();
   const search        = document.getElementById("filterSearch").value.toLowerCase();
 
   let data = allParts.filter(p => {
     const stageOk   = stageFilter === "all" || p.stage === parseInt(stageFilter);
-    const machineOk = machineFilter === "all" || p.machine === machineFilter;
+    const machineOk = !machineFilter || (p.machine || "").toLowerCase().includes(machineFilter);
     const searchOk  = !search || p.name.toLowerCase().includes(search) || (p.serial || "").toLowerCase().includes(search);
     return stageOk && machineOk && searchOk;
   });
