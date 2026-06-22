@@ -396,7 +396,6 @@ try {
 
 const currentUser = localStorage.getItem("user");
 const role        = localStorage.getItem("role");
-const canEdit     = (currentUser === "ahmed" || currentUser === "amr");
 
 if (!currentUser) {
   location.href = "index.html";
@@ -431,8 +430,6 @@ function goDashboard(e) {
   }
   location.href = 'dashboard.html';
 }
-if (!canEdit) document.getElementById("addSection").style.display = "none";
-
 function logout() { localStorage.clear(); location.href = "index.html"; }
 
 const STAGES = [
@@ -776,7 +773,7 @@ function renderCard(p) {
   }
 
   const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
-  const updateHtml = canEdit && p.stage < 5 ? `
+  const updateHtml = p.stage < 5 ? `
     <div class="update-section">
       <h4>🔄 تحديث المرحلة</h4>
       <div class="update-row">

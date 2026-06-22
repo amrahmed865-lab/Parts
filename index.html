@@ -177,22 +177,12 @@ async function login() {
 
   try {
     const email = u.includes('@') ? u : u + EMAIL_DOMAIN;
-    const cred = await auth.signInWithEmailAndPassword(email, p);
-    const uid = cred.user.uid;
+    await auth.signInWithEmailAndPassword(email, p);
 
-    // جيب الدور والماكينة من Firestore (مفيش كلمة سر هنا خالص)
-    const userDoc = await db.collection('users').doc(uid).get();
-
-    if (!userDoc.exists) {
-      alert('الحساب موجود بس مفيش بيانات صلاحيات مرتبطة بيه. كلّم المسؤول.');
-      await auth.signOut();
-      return;
-    }
-
-    const data = userDoc.data();
-    localStorage.setItem('user', data.username || u);
+    // اسم المستخدم هو الجزء اللي قبل @ في الإيميل
+    const username = email.split('@')[0];
+    localStorage.setItem('user', username);
     localStorage.setItem('role', 'user');
-    localStorage.setItem('machine', data.machine || 'all');
     location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
 
   } catch (e) {

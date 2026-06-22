@@ -51,10 +51,8 @@ button { background:red; color:white; padding:15px; border:none; width:100%; mar
 </div>
 
 <script>
-const user        = localStorage.getItem('user');
-const role        = localStorage.getItem('role');
-const userMachine = localStorage.getItem('machine');
-const canEdit     = (user === 'ahmed' || user === 'amr');
+const user = localStorage.getItem('user');
+const role = localStorage.getItem('role');
 
 if (!role) {
   location.href = 'index.html';
@@ -88,8 +86,6 @@ const photoInput = document.getElementById('photo');
 const preview    = document.getElementById('preview');
 const retakeBtn  = document.getElementById('retakeBtn');
 const deleteBtn  = document.getElementById('deleteBtn');
-
-if (!canEdit) { machineEl.value = userMachine; machineEl.disabled = true; }
 
 // منع الإرسال لحد ما نتأكد من جلسة فايربيز حقيقية
 sendBtn.disabled = true;
@@ -130,7 +126,7 @@ deleteBtn.onclick = () => {
 async function sendRequest() {
   const type    = document.getElementById('type').value;
   const desc    = document.getElementById('desc').value;
-  const machine = canEdit ? machineEl.value : userMachine;
+  const machine = machineEl.value;
 
   if (!desc.trim()) { alert('اكتب وصف العطل'); return; }
 
