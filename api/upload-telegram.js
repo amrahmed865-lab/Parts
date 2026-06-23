@@ -26,9 +26,14 @@ export default async function handler(req, res) {
 
     const tgData = await tgRes.json();
 
-    if (!tgData.ok) {
-      return res.status(500).json(tgData);
-    }
+   if (!tgData.ok) {
+  console.log("Telegram Error:", tgData);
+
+  return res.status(500).json({
+    success: false,
+    telegram: tgData
+  });
+}
 
     const fileId =
       tgData.result.photo[tgData.result.photo.length - 1].file_id;
@@ -39,9 +44,12 @@ export default async function handler(req, res) {
     });
 
   } catch (e) {
-    return res.status(500).json({
-      success: false,
-      error: e.message
-    });
-  }
+  console.error(e);
+
+  return res.status(500).json({
+    success: false,
+    error: e.message,
+    stack: e.stack
+  });
+}
 }
