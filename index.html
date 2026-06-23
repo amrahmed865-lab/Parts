@@ -173,7 +173,7 @@ async function login() {
   if (!u || !p) { alert('اكتب اسم المستخدم وكلمة المرور ❌'); return; }
 
   loginBtn.disabled = true;
-  loginBtn.textContent = 'بيدخل...';
+  loginBtn.textContent = 'Logging...';
 
   try {
     const email = u.includes('@') ? u : u + EMAIL_DOMAIN;
