@@ -60,18 +60,18 @@ pre { background: #22263a; padding: 12px; border-radius: 8px; font-size: 12px; o
 
 <script>
 const firebaseConfig = {
-  apiKey:            'AIzaSyCk-sP0Z-TGyx1rcyQhXFR1D52BY-aLt1E',
-  authDomain:        'maintenance-nahda.firebaseapp.com',
-  projectId:         'maintenance-nahda',
-  storageBucket:     'maintenance-nahda.firebasestorage.app',
-  messagingSenderId: '1055981144653',
-  appId:             '1:1055981144653:web:cecf0a83969248f7d12a04'
+ apiKey: "AIzaSyDZ1RAn4fIN6Rqc-b5-BoHiiNFQ9GvZZJA",
+  authDomain: "parts-7e82e.firebaseapp.com",
+  projectId: "parts-7e82e",
+  storageBucket: "parts-7e82e.firebasestorage.app",
+  messagingSenderId: "198514736431",
+  appId: "1:198514736431:web:3e88fb478f4cfc910035da"
 };
 firebase.initializeApp(firebaseConfig);
 const db        = firebase.firestore();
 const messaging = firebase.messaging();
 
-const VAPID = 'BLeQCahZDRsoXPJUFE3SshG7hMHzqPeVts8SG3b4b526BENvcerNez7htoPy03CQtI1GZYOUBFJd0Ddz1l4biuc';
+const VAPID = 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A';
 
 function set(id, html, cls='') {
   const el = document.getElementById(id);
