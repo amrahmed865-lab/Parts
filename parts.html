@@ -655,12 +655,59 @@ async function addPart() {
 const imageFile = document.getElementById("partPhoto").files[0];
 
 if (imageFile) {
+
+  console.log(
+    "Original Size MB:",
+    (imageFile.size / 1024 / 1024).toFixed(2)
+  );
+
   const imageBase64 = await new Promise((resolve, reject) => {
+
+    const img = new Image();
     const reader = new FileReader();
 
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
+    reader.onload = e => {
+      img.onload = () => {
 
+        const canvas = document.createElement("canvas");
+
+        let width = img.width;
+        let height = img.height;
+
+        const MAX_WIDTH = 1280;
+
+        if (width > MAX_WIDTH) {
+          height = Math.round(height * (MAX_WIDTH / width));
+          width = MAX_WIDTH;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressed = canvas.toDataURL(
+          "image/jpeg",
+          0.75
+        );
+
+        console.log(
+          "Compressed MB:",
+          (
+            compressed.length * 0.75 /
+            1024 /
+            1024
+          ).toFixed(2)
+        );
+
+        resolve(compressed);
+      };
+
+      img.src = e.target.result;
+    };
+
+    reader.onerror = reject;
     reader.readAsDataURL(imageFile);
   });
 
@@ -677,10 +724,12 @@ if (imageFile) {
   const uploadData = await uploadRes.json();
 
   if (!uploadData.success) {
+    console.log(uploadData);
     throw new Error("فشل رفع الصورة");
   }
 
   imageFileId = uploadData.fileId;
+}
 }
 
   if (!name) { showToast("اكتب اسم القطعة ❌", true); return; }
