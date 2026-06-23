@@ -650,6 +650,38 @@ async function addPart() {
   const note          = document.getElementById("partNote").value.trim();
   const reminderValue = parseInt(document.getElementById("reminderValue").value) || 7;
   const reminderUnit  = document.getElementById("reminderUnit").value;
+  let imageFileId = "";
+
+const imageFile = document.getElementById("partPhoto").files[0];
+
+if (imageFile) {
+  const imageBase64 = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+
+    reader.readAsDataURL(imageFile);
+  });
+
+  const uploadRes = await fetch("/api/upload-telegram", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      imageBase64
+    })
+  });
+
+  const uploadData = await uploadRes.json();
+
+  if (!uploadData.success) {
+    throw new Error("فشل رفع الصورة");
+  }
+
+  imageFileId = uploadData.fileId;
+}
 
   if (!name) { showToast("اكتب اسم القطعة ❌", true); return; }
 
@@ -664,6 +696,7 @@ async function addPart() {
       serial:      serial || "",
       machine,
       center:      center || "",
+      imageFileId,
       stage:       0,
       reminderValue,
       reminderUnit,
