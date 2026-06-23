@@ -430,7 +430,12 @@ function goDashboard(e) {
   }
   location.href = 'dashboard.html';
 }
-function logout() { localStorage.clear(); location.href = "index.html"; }
+function logout() {
+  auth.signOut().finally(() => {
+    localStorage.clear();
+    location.href = "index.html";
+  });
+}
 
 const STAGES = [
   { label: "خرجت للمركز",        icon: "📤", color: "#6366f1" },
