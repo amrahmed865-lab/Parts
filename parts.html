@@ -430,7 +430,24 @@ function goDashboard(e) {
   }
   location.href = 'dashboard.html';
 }
-function logout() {
+async function logout() {
+  // حذف توكن الإشعارات الحالي من فايربيز نفسها قبل الخروج
+  // عشان اليوزر التالي على نفس الجهاز ياخد توكن جديد تماماً
+  try {
+    if (messaging) {
+      const token = await messaging.getToken({
+        vapidKey: 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A'
+      }).catch(() => null);
+
+      if (token) {
+        await messaging.deleteToken().catch(() => {});
+        await db.collection("tokens").doc(token).delete().catch(() => {});
+      }
+    }
+  } catch (e) {
+    console.warn('تعذّر حذف توكن الإشعارات:', e.message);
+  }
+
   auth.signOut().finally(() => {
     localStorage.clear();
     location.href = "index.html";
@@ -450,34 +467,49 @@ const OUTSIDE_STAGES = new Set([0, 1]);
 
 async function startNotifications() {
   try {
+    console.log("[DEBUG] startNotifications بدأت، اليوزر:", currentUser);
+
     if (!messaging) {
-      console.log("الإشعارات غير مدعومة على هذا المتصفح");
+      console.log("[DEBUG] الإشعارات غير مدعومة على هذا المتصفح (messaging = null)");
       updateNotifBadge(false);
       return;
     }
+    console.log("[DEBUG] messaging موجودة، هطلب الإذن");
 
     const permission = await Notification.requestPermission();
+    console.log("[DEBUG] رد الإذن:", permission);
     if (permission !== 'granted') {
-      console.log("Permission denied");
+      console.log("[DEBUG] الإذن مرفوض");
       updateNotifBadge(false);
       return;
     }
 
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    console.log("SW Registered");
+    console.log("[DEBUG] SW Registered:", registration.scope);
 
     const token = await messaging.getToken({
       vapidKey: 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A',
       serviceWorkerRegistration: registration
     });
 
-    if (!token) { console.log("No FCM token"); updateNotifBadge(false); return; }
+    console.log("[DEBUG] التوكن اللي رجع:", token);
+
+    if (!token) {
+      console.log("[DEBUG] مفيش توكن خالص (null/undefined)");
+      updateNotifBadge(false);
+      return;
+    }
+
+    console.log("[DEBUG] هكتب التوكن في Firestore دلوقتي...");
 
     await db.collection("tokens").doc(token).set({
       token:     token,
       user:      currentUser || "unknown",
-      createdAt: new Date()
+      createdAt: new Date(),
+      updatedAt: new Date()
     });
+
+    console.log("[DEBUG] ✅ التوكن اتكتب في Firestore بنجاح فعلي");
 
     updateNotifBadge(true);
 
@@ -493,7 +525,7 @@ async function startNotifications() {
       }
     });
   } catch(e) {
-    console.error(e);
+    console.error("[DEBUG] ❌ حصل خطأ في startNotifications:", e.code || '', e.message);
     updateNotifBadge(false);
   }
 }
