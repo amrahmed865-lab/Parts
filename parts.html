@@ -857,12 +857,13 @@ const imageHtml = p.imageFileId
 ? `
 <div style="
   display:flex;
-  justify-content:flex-start;
+  flex-direction:column;
+  align-items:flex-start;
   margin-bottom:12px;
 ">
   <img
     src="/api/get-telegram-image?fileId=${encodeURIComponent(p.imageFileId)}"
-    onclick="window.open(this.src,'_blank')"
+    onclick="openImageViewer(this.src)"
     style="
       width:220px;
       max-width:100%;
@@ -872,6 +873,23 @@ const imageHtml = p.imageFileId
       display:block;
     "
   >
+
+  <a
+    href="/api/get-telegram-image?fileId=${encodeURIComponent(p.imageFileId)}"
+    download
+    style="
+      margin-top:8px;
+      padding:6px 12px;
+      background:var(--accent);
+      color:black;
+      border-radius:8px;
+      text-decoration:none;
+      font-size:12px;
+      font-weight:700;
+    "
+  >
+    ⬇️ تحميل الصورة
+  </a>
 </div>
 `
 : "";
@@ -975,6 +993,15 @@ function showToast(msg, isError = false) {
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 3000);
 }
+  
+  function openImageViewer(src) {
+  document.getElementById("viewerImg").src = src;
+  document.getElementById("imageViewer").style.display = "flex";
+}
+
+function closeImageViewer() {
+  document.getElementById("imageViewer").style.display = "none";
+}
   window.addEventListener("load", () => {
   const params = new URLSearchParams(window.location.search);
   const partId = params.get("part");
@@ -994,5 +1021,38 @@ function showToast(msg, isError = false) {
   }, 1500);
 });
 </script>
+  <div id="imageViewer" style="
+display:none;
+position:fixed;
+inset:0;
+background:rgba(0,0,0,.9);
+z-index:99999;
+justify-content:center;
+align-items:center;
+">
+
+  <button onclick="closeImageViewer()" style="
+  position:absolute;
+  top:20px;
+  right:20px;
+  font-size:28px;
+  background:none;
+  border:none;
+  color:white;
+  cursor:pointer;
+  ">
+  ✕
+  </button>
+
+  <img
+    id="viewerImg"
+    src=""
+    style="
+      max-width:95vw;
+      max-height:95vh;
+      object-fit:contain;
+    "
+  >
+</div>
 </body>
 </html>
