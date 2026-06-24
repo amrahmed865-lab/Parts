@@ -674,7 +674,7 @@ if (imageFile) {
         let width = img.width;
         let height = img.height;
 
-        const MAX_WIDTH = 1280;
+        const MAX_WIDTH = 1920;
 
         if (width > MAX_WIDTH) {
           height = Math.round(height * (MAX_WIDTH / width));
@@ -689,7 +689,7 @@ if (imageFile) {
 
         const compressed = canvas.toDataURL(
           "image/jpeg",
-          0.75
+          0.9
         );
 
         console.log(
