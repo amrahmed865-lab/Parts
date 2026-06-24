@@ -100,17 +100,17 @@ export default async function handler(req, res) {
       }
     });
 
-    if (badTokens.length > 0) {
-      const batch = db.batch();
+//    if (badTokens.length > 0) {
+   //   const batch = db.batch();
 
-      const toDelSnap = await db
-        .collection('tokens')
-        .where('token', 'in', badTokens.slice(0, 30))
-        .get();
+    ///  const toDelSnap = await db
+    //    .collection('tokens')
+    //    .where('token', 'in', badTokens.slice(0, 30))
+     //   .get();
 
-      toDelSnap.forEach(d => batch.delete(d.ref));
+  //   toDelSnap.forEach(d => batch.delete(d.ref));
 
-      await batch.commit();
+    //  await batch.commit();
     }
 
     return res.status(200).json({
