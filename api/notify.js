@@ -78,6 +78,19 @@ export default async function handler(req, res) {
         }
       }
     });
+    console.log("FCM RESPONSE");
+
+response.responses.forEach((r, i) => {
+  console.log(
+    "TOKEN",
+    i,
+    "SUCCESS:",
+    r.success,
+    "ERROR:",
+    r.error?.code,
+    r.error?.message
+  );
+});
 
     let totalSuccess = 0;
     let totalFail = 0;
