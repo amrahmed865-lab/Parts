@@ -493,7 +493,7 @@ async function startNotifications() {
       return;
     }
 
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js?v=2');
     console.log("[DEBUG] SW Registered:", registration.scope);
 
     const token = await messaging.getToken({
