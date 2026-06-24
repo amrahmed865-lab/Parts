@@ -111,7 +111,7 @@ export default async function handler(req, res) {
   //   toDelSnap.forEach(d => batch.delete(d.ref));
 
     //  await batch.commit();
-    }
+   // }
 
     return res.status(200).json({
       success: true,
