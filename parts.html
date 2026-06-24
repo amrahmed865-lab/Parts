@@ -449,7 +449,7 @@ async function logout() {
       }).catch(() => null);
 
       if (token) {
-        await messaging.deleteToken().catch(() => {});
+       // await messaging.deleteToken().catch(() => {});
         await db.collection("tokens").doc(token).delete().catch(() => {});
       }
     }
