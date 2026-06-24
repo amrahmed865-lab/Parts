@@ -59,6 +59,12 @@ export default async function handler(req, res) {
     }
 
     const response = await getMessaging().sendEachForMulticast({
+      if (!response.responses[0]?.success) {
+  return res.status(500).json({
+    code: response.responses[0]?.error?.code,
+    message: response.responses[0]?.error?.message
+  });
+        }
       tokens,
 
       notification: {
