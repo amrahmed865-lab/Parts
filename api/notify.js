@@ -45,10 +45,17 @@ export default async function handler(req, res) {
 
     if (tokens.length === 0) {
       return res.status(200).json({
-        success: true,
-        sent: 0,
-        message: 'No tokens found'
-      });
+  success: true,
+  sent: totalSuccess,
+  failed: totalFail,
+  total: tokens.length,
+
+  responses: response.responses.map(r => ({
+    success: r.success,
+    code: r.error?.code || null,
+    message: r.error?.message || null
+  }))
+});
     }
 
     const response = await getMessaging().sendEachForMulticast({
