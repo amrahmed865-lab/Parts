@@ -853,7 +853,21 @@ function renderCard(p) {
   if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${minsP} دقيقة`;
 
   const overdue = isOverdue(p);
-
+const imageHtml = p.imageFileId
+? `
+<img
+  src="/api/get-telegram-image?fileId=${encodeURIComponent(p.imageFileId)}"
+  style="
+    width:100%;
+    max-height:300px;
+    object-fit:contain;
+    border-radius:10px;
+    margin-bottom:12px;
+    background:#111;
+  "
+>
+`
+: "";
   const timelineHtml = STAGES.map((s, i) => {
     const entry    = history.find(h => h.stage === i);
     const isActive = p.stage === i;
@@ -930,6 +944,7 @@ function renderCard(p) {
         <span class="part-expand-icon">▼</span>
       </div>
       <div class="part-body">
+      ${imageHtml}
         <div class="part-meta">
           ${p.center ? `<div class="meta-item"><span class="key">مركز الإصلاح</span><span class="val">🏭 ${p.center}</span></div>` : ''}
           <div class="meta-item"><span class="key">أضافها</span><span class="val">👤 ${p.createdBy}</span></div>
