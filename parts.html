@@ -672,18 +672,21 @@ async function addPart() {
       }]
     });
 
+    showToast("تم تسجيل القطعة ✅");
+
     const unitAr = reminderUnit === 'minutes' ? 'دقيقة' : (reminderUnit === 'hours' ? 'ساعة' : 'يوم');
     const centerText = center ? ` لشركة ${center}` : '';
-    await sendNotificationToAll(
-      "📤 قطعة غيار خرجت للإصلاح",
-      `${currentUser} ارسل ${name} خاص ب ${machine}${centerText} | تذكير بعد ${reminderValue} ${unitAr}`
-    );
+
+    setTimeout(function() {
+      sendNotificationToAll(
+        "📤 قطعة غيار خرجت للإصلاح",
+        `${currentUser} ارسل ${name} خاص ب ${machine}${centerText} | تذكير بعد ${reminderValue} ${unitAr}`
+      );
+    }, 3500);
 
     ["partName","partSerial","partCenter","partNote"].forEach(id => document.getElementById(id).value = "");
     document.getElementById("reminderValue").value = "7";
     document.getElementById("reminderUnit").value = "days";
-
-    showToast("تم تسجيل القطعة ✅");
   } catch(e) {
     showToast("خطأ: " + e.message, true);
   }
