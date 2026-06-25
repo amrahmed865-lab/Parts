@@ -600,9 +600,9 @@ async function sendNotificationToAll(title, body) {
     });
     const result = await response.json();
     console.log('[notify] sent:', result);
-    const successCount = (result.success !== undefined) ? result.success : '?';
-    const failedCount  = (result.failed  !== undefined) ? result.failed  : '?';
-    showToast(`📡 إشعار: ${response.status} | نجح ${successCount} فشل ${failedCount}`);
+    const sentCount   = (result.sent   !== undefined) ? result.sent   : '?';
+    const failedCount = (result.failed !== undefined) ? result.failed : '?';
+    showToast(`📡 إشعار: ${response.status} | نجح ${sentCount} فشل ${failedCount}`);
   } catch (e) {
     console.error('[notify] error:', e);
     showToast('📡 فشل إرسال الإشعار: ' + e.message, true);
