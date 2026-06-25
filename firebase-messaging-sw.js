@@ -14,7 +14,7 @@ const messaging = firebase.messaging();
 
 messaging.setBackgroundMessageHandler(function(payload) {
 
-  const partId = payload.data?.partId || "";
+  const partId = (payload.data && payload.data.partId) || "";
 
   return self.registration.showNotification(
     payload.notification.title,
@@ -35,7 +35,7 @@ self.addEventListener('notificationclick', function(event) {
   event.notification.close();
 
   const targetUrl =
-    event.notification.data?.url || '/parts.html';
+    (event.notification.data && event.notification.data.url) || '/parts.html';
 
   event.waitUntil(
     clients.openWindow(targetUrl)

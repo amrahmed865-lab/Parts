@@ -24,6 +24,3 @@ service cloud.firestore {
 - index.html
 - dashboard.html
 - request.html
-الـ Chat ID بتاع الجروب هو:
-
--1003852770667

@@ -330,15 +330,6 @@ select option { background: var(--surface2); }
         <label>ملاحظة عند الإخراج</label>
         <textarea id="partNote" placeholder="وصف المشكلة أو سبب الإرسال للمركز..."></textarea>
       </div>
-      <div class="full">
-  <label>صورة القطعة</label>
-  <input
-    type="file"
-    id="partPhoto"
-    accept="image/*"
-    capture="environment"
-  />
-</div>
 
       <!-- ── REMINDER ── -->
       <div class="full">
@@ -449,7 +440,7 @@ async function logout() {
       }).catch(() => null);
 
       if (token) {
-       // await messaging.deleteToken().catch(() => {});
+        await messaging.deleteToken().catch(() => {});
         await db.collection("tokens").doc(token).delete().catch(() => {});
       }
     }
@@ -493,7 +484,7 @@ async function startNotifications() {
       return;
     }
 
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js?v=2');
+    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
     console.log("[DEBUG] SW Registered:", registration.scope);
 
     const token = await messaging.getToken({
@@ -621,7 +612,7 @@ function startApp() {
   startNotifications();
 
   db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
-    allParts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    allParts = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     render();
   });
 }
@@ -633,7 +624,7 @@ function getDeadline(p) {
   const val = p.reminderValue || p.reminderDays;
   if (!val) return null;
   const unit = p.reminderUnit || 'days';
-  const created = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+  const created = (p.createdAt && p.createdAt.toDate) ? p.createdAt.toDate() : new Date(p.createdAt);
   const deadline = new Date(created);
   if (unit === 'minutes') deadline.setMinutes(deadline.getMinutes() + val);
   else if (unit === 'hours') deadline.setHours(deadline.getHours() + val);
@@ -650,87 +641,6 @@ async function addPart() {
   const note          = document.getElementById("partNote").value.trim();
   const reminderValue = parseInt(document.getElementById("reminderValue").value) || 7;
   const reminderUnit  = document.getElementById("reminderUnit").value;
-  let imageFileId = "";
-
-const imageFile = document.getElementById("partPhoto").files[0];
-
-if (imageFile) {
-
-  console.log(
-    "Original Size MB:",
-    (imageFile.size / 1024 / 1024).toFixed(2)
-  );
-
-  const imageBase64 = await new Promise((resolve, reject) => {
-
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = e => {
-      img.onload = () => {
-
-        const canvas = document.createElement("canvas");
-
-        let width = img.width;
-        let height = img.height;
-
-        const MAX_WIDTH = 1920;
-
-        if (width > MAX_WIDTH) {
-          height = Math.round(height * (MAX_WIDTH / width));
-          width = MAX_WIDTH;
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const compressed = canvas.toDataURL(
-          "image/jpeg",
-          0.98
-        );
-
-        console.log(
-          "Compressed MB:",
-          (
-            compressed.length * 0.75 /
-            1024 /
-            1024
-          ).toFixed(2)
-        );
-
-        resolve(compressed);
-      };
-
-      img.src = e.target.result;
-    };
-
-    reader.onerror = reject;
-    reader.readAsDataURL(imageFile);
-  });
-
-  const uploadRes = await fetch("/api/upload-telegram", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      imageBase64
-    })
-  });
-
-  const uploadData = await uploadRes.json();
-
-  if (!uploadData.success) {
-    console.log(uploadData);
-    throw new Error("فشل رفع الصورة");
-  }
-
-  imageFileId = uploadData.fileId;
-}
-
 
   if (!name) { showToast("اكتب اسم القطعة ❌", true); return; }
 
@@ -745,7 +655,6 @@ if (imageFile) {
       serial:      serial || "",
       machine,
       center:      center || "",
-      imageFileId,
       stage:       0,
       reminderValue,
       reminderUnit,
@@ -786,12 +695,12 @@ async function updateStage(partId) {
   if (!part) return;
 
   const now     = new Date();
-  const history = [...(part.history || []), {
+  const history = (part.history || []).concat([{
     stage: newStage,
     date:  now.toISOString(),
     by:    currentUser,
     note:  note || ""
-  }];
+  }]);
 
   try {
     await db.collection("parts").doc(partId).update({ stage: newStage, history, updatedAt: now });
@@ -842,7 +751,7 @@ function isOverdue(p) {
 function renderCard(p) {
   const stage       = STAGES[p.stage] || STAGES[0];
   const history     = p.history || [];
-  const created     = p.createdAt?.toDate ? p.createdAt.toDate() : new Date(p.createdAt);
+  const created     = (p.createdAt && p.createdAt.toDate) ? p.createdAt.toDate() : new Date(p.createdAt);
   
   const timePassedMs = Date.now() - created.getTime();
   const daysP  = Math.floor(timePassedMs / 86400000);
@@ -853,54 +762,15 @@ function renderCard(p) {
   if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${minsP} دقيقة`;
 
   const overdue = isOverdue(p);
-const imageHtml = p.imageFileId
-? `
-<div style="
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  margin-bottom:12px;
-">
-  <img
-    src="/api/get-telegram-image?fileId=${encodeURIComponent(p.imageFileId)}"
-    onclick="openImageViewer(this.src)"
-    style="
-      width:220px;
-      max-width:100%;
-      border-radius:10px;
-      cursor:pointer;
-      border:1px solid var(--border);
-      display:block;
-    "
-  >
 
-  <a
-    href="/api/get-telegram-image?fileId=${encodeURIComponent(p.imageFileId)}"
-    download
-    style="
-      margin-top:8px;
-      padding:6px 12px;
-      background:var(--accent);
-      color:black;
-      border-radius:8px;
-      text-decoration:none;
-      font-size:12px;
-      font-weight:700;
-    "
-  >
-    ⬇️ تحميل الصورة
-  </a>
-</div>
-`
-: "";
   const timelineHtml = STAGES.map((s, i) => {
     const entry    = history.find(h => h.stage === i);
     const isActive = p.stage === i;
     const isDone   = p.stage > i;
     let cls = "tl-item" + (isActive ? " active" : "") + (!entry && !isActive ? " pending" : "");
     const dateStr = entry ? new Date(entry.date).toLocaleString("ar-EG") : "";
-    const noteHtml = entry?.note ? `<div class="tl-note">${entry.note}</div>` : "";
-    const byHtml   = entry?.by   ? ` · ${entry.by}` : "";
+    const noteHtml = (entry && entry.note) ? `<div class="tl-note">${entry.note}</div>` : "";
+    const byHtml   = (entry && entry.by)   ? ` · ${entry.by}` : "";
     return `
       <div class="${cls}">
         <div class="tl-dot" style="background:${isDone||isActive ? s.color : 'var(--border)'}"></div>
@@ -969,7 +839,6 @@ const imageHtml = p.imageFileId
         <span class="part-expand-icon">▼</span>
       </div>
       <div class="part-body">
-      ${imageHtml}
         <div class="part-meta">
           ${p.center ? `<div class="meta-item"><span class="key">مركز الإصلاح</span><span class="val">🏭 ${p.center}</span></div>` : ''}
           <div class="meta-item"><span class="key">أضافها</span><span class="val">👤 ${p.createdBy}</span></div>
@@ -993,15 +862,6 @@ function showToast(msg, isError = false) {
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 3000);
 }
-  
-  function openImageViewer(src) {
-  document.getElementById("viewerImg").src = src;
-  document.getElementById("imageViewer").style.display = "flex";
-}
-
-function closeImageViewer() {
-  document.getElementById("imageViewer").style.display = "none";
-}
   window.addEventListener("load", () => {
   const params = new URLSearchParams(window.location.search);
   const partId = params.get("part");
@@ -1021,38 +881,5 @@ function closeImageViewer() {
   }, 1500);
 });
 </script>
-  <div id="imageViewer" style="
-display:none;
-position:fixed;
-inset:0;
-background:rgba(0,0,0,.9);
-z-index:99999;
-justify-content:center;
-align-items:center;
-">
-
-  <button onclick="closeImageViewer()" style="
-  position:absolute;
-  top:20px;
-  right:20px;
-  font-size:28px;
-  background:none;
-  border:none;
-  color:white;
-  cursor:pointer;
-  ">
-  ✕
-  </button>
-
-  <img
-    id="viewerImg"
-    src=""
-    style="
-      max-width:95vw;
-      max-height:95vh;
-      object-fit:contain;
-    "
-  >
-</div>
 </body>
 </html>
