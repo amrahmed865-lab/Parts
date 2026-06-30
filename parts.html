@@ -10,12 +10,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
-<!-- Firebase v8 compat -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
 <script src="app-config.js"></script>
+<script src="notif-helper.js"></script>
 
 <style>
 :root {
@@ -331,7 +331,6 @@ select option { background: var(--surface2); }
         <textarea id="partNote" placeholder="وصف المشكلة أو سبب الإرسال للمركز..."></textarea>
       </div>
 
-      <!-- ── REMINDER ── -->
       <div class="full">
         <div class="reminder-row">
           <label>⏰ تذكير لو القطعة مرجعتش بعد</label>
@@ -405,7 +404,6 @@ if (!currentUser) {
 // تأكيد حقيقي من فايربيز إن فيه جلسة دخول صحيحة قبل أي تعامل مع قاعدة البيانات
 auth.onAuthStateChanged(user => {
   if (!user) {
-    // مفيش جلسة فايربيز حقيقية، رغم وجود بيانات في localStorage
     localStorage.clear();
     location.href = "index.html";
     return;
@@ -430,9 +428,8 @@ function goDashboard(e) {
   }
   location.href = 'dashboard.html';
 }
+
 async function logout() {
-  // حذف توكن الإشعارات الحالي من فايربيز نفسها قبل الخروج
-  // عشان اليوزر التالي على نفس الجهاز ياخد توكن جديد تماماً
   try {
     if (messaging) {
       const token = await messaging.getToken({
@@ -465,79 +462,11 @@ const STAGES = [
 
 const OUTSIDE_STAGES = new Set([0, 1]);
 
-async function startNotifications() {
-  try {
-    console.log("[DEBUG] startNotifications بدأت، اليوزر:", currentUser);
-
-    if (!messaging) {
-      console.log("[DEBUG] الإشعارات غير مدعومة على هذا المتصفح (messaging = null)");
-      updateNotifBadge(false);
-      return;
-    }
-    console.log("[DEBUG] messaging موجودة، هطلب الإذن");
-
-    const permission = await Notification.requestPermission();
-    console.log("[DEBUG] رد الإذن:", permission);
-    if (permission !== 'granted') {
-      console.log("[DEBUG] الإذن مرفوض");
-      updateNotifBadge(false);
-      return;
-    }
-
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-    console.log("[DEBUG] SW Registered:", registration.scope);
-
-    const token = await messaging.getToken({
-      vapidKey: 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A',
-      serviceWorkerRegistration: registration
-    });
-
-    console.log("[DEBUG] التوكن اللي رجع:", token);
-
-    if (!token) {
-      console.log("[DEBUG] مفيش توكن خالص (null/undefined)");
-      updateNotifBadge(false);
-      return;
-    }
-
-    console.log("[DEBUG] هكتب التوكن في Firestore دلوقتي...");
-
-    await db.collection("tokens").doc(token).set({
-      token:     token,
-      user:      currentUser || "unknown",
-      createdAt: new Date(),
-      updatedAt: new Date()
-    });
-
-    console.log("[DEBUG] ✅ التوكن اتكتب في Firestore بنجاح فعلي");
-
-    updateNotifBadge(true);
-
-    messaging.onMessage(async (payload) => {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
-        reg.showNotification(payload.notification.title, {
-          body:    payload.notification.body,
-          icon:    '/icon-192.png',
-          badge:   '/icon-192.png',
-          vibrate: [200, 100, 200]
-        });
-      }
-    });
-  } catch(e) {
-    console.error("[DEBUG] ❌ حصل خطأ في startNotifications:", e.code || '', e.message);
-    updateNotifBadge(false);
-  }
-}
-
 function updateNotifBadge(on) {
   const b = document.getElementById("notifBadge");
   if (on) { b.textContent = "🔔 إشعارات مفعّلة"; b.className = "notif-status notif-on"; }
   else    { b.textContent = "🔕 إشعارات";        b.className = "notif-status notif-off"; }
 }
-
-// ── تشغيل تلقائي عند تحميل الصفحة (زي الأصل): يطلب الإذن مباشرة ──
-// (بيتم استدعاؤها من جوه startApp() بعد تأكيد تسجيل الدخول)
 
 async function toggleNotifications() {
   if (Notification.permission === 'granted') {
@@ -553,7 +482,20 @@ async function toggleNotifications() {
   const wantsToEnable = confirm('عايز تفعّل الإشعارات لطلبات الصيانة وقطع الغيار؟');
   if (!wantsToEnable) return;
 
-  await startNotifications();
+  const success = await initFCM(db, currentUser);
+  updateNotifBadge(success);
+}
+
+// ── إرسال إشعار و عرض النتيجة ──
+async function notifyAndToast(title, body) {
+  try {
+    const result = await sendNotificationToAll(title, body);
+    const sentCount   = (result.sent   !== undefined) ? result.sent   : '?';
+    const failedCount = (result.failed !== undefined) ? result.failed : '?';
+    showToast(`📡 إشعار: نجح ${sentCount} فشل ${failedCount}`);
+  } catch (e) {
+    showToast('📡 فشل إرسال الإشعار: ' + e.message, true);
+  }
 }
 
 // ── تثبيت التطبيق (PWA) ──
@@ -571,7 +513,6 @@ window.addEventListener('appinstalled', () => {
   installBtn.style.display = 'none';
 });
 
-// لو التطبيق شغال بالفعل كـ PWA مثبتة، اخفي الزرار
 if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
   installBtn.style.display = 'none';
 }
@@ -589,40 +530,17 @@ async function installApp() {
   deferredInstallPrompt = null;
 }
 
-async function sendNotificationToAll(title, body) {
-  try {
-    const RLM = '\u200F'; // علامة RTL لضبط اتجاه القراءة في الإشعار
-    // Vercel بيجيب التوكنات هو نفسه من Firestore — مش محتاج token من هنا
-    const response = await fetch('/api/notify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: RLM + title, body: RLM + body })
-    });
-    const result = await response.json();
-    console.log('[notify] sent:', result);
-    const sentCount   = (result.sent   !== undefined) ? result.sent   : '?';
-    const failedCount = (result.failed !== undefined) ? result.failed : '?';
-    showToast(`📡 إشعار: ${response.status} | نجح ${sentCount} فشل ${failedCount}`);
-  } catch (e) {
-    console.error('[notify] error:', e);
-    showToast('📡 فشل إرسال الإشعار: ' + e.message, true);
-  }
-}
-
-
 let allParts = [];
 
 function startApp() {
-  startNotifications();
+  // تفعيل الإشعارات وتحديث الزر
+  initFCM(db, currentUser).then(success => updateNotifBadge(success));
 
   db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
     allParts = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     render();
   });
 }
-
-// تشغيل فحص التذكيرات كل 60 ثانية (تلقائياً)
-
 
 function getDeadline(p) {
   const val = p.reminderValue || p.reminderDays;
@@ -635,7 +553,6 @@ function getDeadline(p) {
   else deadline.setDate(deadline.getDate() + val);
   return deadline;
 }
-
 
 async function addPart() {
   const name          = document.getElementById("partName").value.trim();
@@ -678,7 +595,7 @@ async function addPart() {
     const centerText = center ? ` لشركة ${center}` : '';
 
     setTimeout(function() {
-      sendNotificationToAll(
+      notifyAndToast(
         "📤 قطعة غيار خرجت للإصلاح",
         `${currentUser} ارسل ${name} خاص ب ${machine}${centerText} | تذكير بعد ${reminderValue} ${unitAr}`
       );
@@ -711,15 +628,13 @@ async function updateStage(partId) {
 
   try {
     await db.collection("parts").doc(partId).update({ stage: newStage, history, updatedAt: now });
-    await sendNotificationToAll(
+    await notifyAndToast(
       `${STAGES[newStage].icon} قطعة غيار: ${STAGES[newStage].label}`,
       `${currentUser} حدّث ${part.name} خاص ب ${part.machine}`
     );
     const noteInput = document.getElementById("inp_note_" + partId);
-
-if (noteInput) {
-  noteInput.value = "";
-}
+    if (noteInput) noteInput.value = "";
+    
     showToast("تم التحديث ✅");
   } catch(e) {
     showToast("خطأ: " + e.message, true);
@@ -869,7 +784,8 @@ function showToast(msg, isError = false) {
   t.classList.add("show");
   setTimeout(() => t.classList.remove("show"), 3000);
 }
-  window.addEventListener("load", () => {
+
+window.addEventListener("load", () => {
   const params = new URLSearchParams(window.location.search);
   const partId = params.get("part");
 
@@ -877,7 +793,6 @@ function showToast(msg, isError = false) {
 
   setTimeout(() => {
     const card = document.getElementById("card_" + partId);
-
     if (card) {
       card.classList.add("expanded");
       card.scrollIntoView({
