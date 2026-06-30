@@ -105,7 +105,7 @@ class FirebaseNotificationsManager {
         applicationServerKey: this.urlBase64ToUint8Array(
           // استخدم VAPID public key من Firebase Console
           // Project Settings → Cloud Messaging → Web Push certificates
-          localStorage.getItem('vapidPublicKey') || 'BElPRUo6K2hhNXhobGhFVE1zMUhwVXJxMWdpTWlibVhWWFJ2M2tqTmJYaDk5VnBPWGdaSFVaZzVRWT0='
+          localStorage.getItem('vapidPublicKey') || 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A'
         )
       });
       return subscription;
