@@ -3,7 +3,7 @@
 //  يتحمّل في كل صفحة بدل firebase-notifications.js
 // ═══════════════════════════════════════════════════
 
-const VAPID_KEY = 'BLeQCahZDRsoXPJUFE3SshG7hMHzqPeVts8SG3b4b526BENvcerNez7htoPy03CQtI1GZYOUBFJd0Ddz1l4biuc';
+const VAPID_KEY = 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A';
 
 // ── بيشغّل FCM ويحفظ التوكن في Firestore ──
 async function initFCM(db) {
