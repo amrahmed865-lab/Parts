@@ -170,9 +170,10 @@ select option { background: var(--surface2); }
       <option value="all">كل المراحل</option>
       <option value="0">📤 بالخارج للاصلاح</option>
       <option value="1">📥 رجعت من المركز</option>
-      <option value="2">⚙️ اتجربت في الماكينة</option>
-      <option value="3">🛡️ في الضمان</option>
-      <option value="4">✅ مكتملة</option>
+      <option value="2">❌ لا تعمل</option>
+      <option value="3">⚙️ اتجربت في الماكينة</option>
+      <option value="4">🛡️ في الضمان</option>
+      <option value="5">✅ مكتملة</option>
     </select>
     <input type="text" id="filterMachine" placeholder="🔍 فلتر بالماكينة..." oninput="render()" />
     <input type="text" id="filterSearch" placeholder="🔍 ابحث باسم القطعة..." oninput="render()" />
@@ -233,13 +234,14 @@ async function logout() {
   auth.signOut().finally(() => { localStorage.clear(); location.href = "index.html"; });
 }
 
-// التعديل في اسم المرحلة الأولى
+// ⚠️ تم إضافة "لا تعمل" وتغيير ترتيب المراحل
 const STAGES = [
-  { label: "بالخارج للاصلاح",      icon: "📤", color: "#6366f1" },
-  { label: "رجعت من المركز",     icon: "📥", color: "#3b82f6" },
-  { label: "اتجربت في الماكينة", icon: "⚙️", color: "#a855f7" },
-  { label: "في الضمان",           icon: "🛡️", color: "#22c55e" },
-  { label: "مكتملة",              icon: "✅", color: "#10b981" },
+  { label: "بالخارج للاصلاح",      icon: "📤", color: "#6366f1" }, // 0
+  { label: "رجعت من المركز",     icon: "📥", color: "#3b82f6" }, // 1
+  { label: "لا تعمل",            icon: "❌", color: "#ef4444" }, // 2
+  { label: "اتجربت في الماكينة", icon: "⚙️", color: "#a855f7" }, // 3
+  { label: "في الضمان",           icon: "🛡️", color: "#22c55e" }, // 4
+  { label: "مكتملة",              icon: "✅", color: "#10b981" }, // 5
 ];
 
 function updateNotifBadge(on) {
@@ -428,10 +430,9 @@ async function renewReminder(partId) {
       reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
-    // التعديل في صياغة إشعار التجديد
     await notifyAndToast(
       `⏳ تجديد المتابعة`,
-      `تم تجديد المتابعة للمرة ${currentRenewCount} لـ ${part.name} خاص بـ ${part.machine} مع ${centerName}`
+      `تم تجديد المتابعة للمرة ${currentRenewCount} للكارتة ${part.name} خاص بـ ${part.machine} مع ${centerName}`
     );
     showToast("تم تجديد التذكير بنجاح ✅");
   } catch(e) {
@@ -460,7 +461,8 @@ function renderCard(p) {
   let timePassedStr = `${daysP} يوم`;
   if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${Math.floor(timePassedMs / 60000)} دقيقة`;
 
-  const isOver = p.stage < 4 && getDeadline(p) && new Date() > getDeadline(p);
+  // ⚠️ التذكير شغال لحد المرحلة 5 (مكتملة)
+  const isOver = p.stage < 5 && getDeadline(p) && new Date() > getDeadline(p);
 
   const timelineHtml = STAGES.map((s, i) => {
     const entries = history.filter(h => h.stage === i);
@@ -494,7 +496,7 @@ function renderCard(p) {
     </div>` : '';
 
   let reminderBanner = "";
-  if (p.stage < 4 && (p.reminderValue || p.reminderDays)) {
+  if (p.stage < 5 && (p.reminderValue || p.reminderDays)) {
     const deadline = getDeadline(p);
     const msLeft = deadline - Date.now();
     const absMs = Math.abs(msLeft);
@@ -507,9 +509,15 @@ function renderCard(p) {
     }
   }
 
-  const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
+  // ⚠️ المنطق الذكي للقائمة المنسدلة: لو القطعة "لا تعمل" (مرحلة 2)، يسمح بإرجاعها لـ "بالخارج للاصلاح" (مرحلة 0)
+  const nextOptions = STAGES.map((s, i) => {
+    if (i === p.stage) return ""; // إخفاء المرحلة الحالية
+    if (i > p.stage) return `<option value="${i}">${s.icon} ${s.label}</option>`;
+    if (p.stage === 2 && i === 0) return `<option value="${i}">${s.icon} ${s.label}</option>`; // الرجوع من لا تعمل للاصلاح
+    return "";
+  }).join("");
   
-  const renewReminderHtml = p.stage < 4 ? `
+  const renewReminderHtml = p.stage < 5 ? `
     <div class="update-section" style="margin-bottom: 12px; border-right: 4px solid var(--accent);">
       <h4 style="color: var(--text);">⏳ تجديد التذكير (لنفس المرحلة)</h4>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -529,7 +537,8 @@ function renderCard(p) {
     </div>
   ` : '';
 
-  const updateHtml = p.stage < 4 ? `
+  // ⚠️ التعديل هنا لظهور عبارة "تعمل بحالة جيدة" في النهاية
+  const updateHtml = p.stage < 5 ? `
     ${renewReminderHtml}
     <div class="update-section">
       <h4>🔄 نقل القطعة لمرحلة جديدة</h4>
@@ -557,7 +566,7 @@ function renderCard(p) {
         </div>
       </div>
       <button class="btn-update" onclick="updateStage('${p.id}')">حفّظ التحديث</button>
-    </div>` : `<div style="color:var(--success);font-size:13px;font-weight:700;">✅ القطعة دي اكتملت بالكامل</div>`;
+    </div>` : `<div style="color:var(--success);font-size:13px;font-weight:700;">✅ تعمل بحالة جيدة</div>`;
 
   return `
     <div class="part-card${isOver ? ' overdue' : ''}" id="card_${p.id}">
