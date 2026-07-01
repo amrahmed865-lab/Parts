@@ -59,7 +59,6 @@ export default async function handler(req, res) {
     for (const doc of snap.docs) {  
       const part = { id: doc.id, ...doc.data() };  
 
-      // التذكير شغال طالما القطعة لسة مش مكتملة (أقل من مرحلة 4)
       if (part.stage >= 4) continue;  
 
       const deadline = getDeadline(part);  
@@ -100,7 +99,7 @@ export default async function handler(req, res) {
       const stageName = STAGE_NAMES[part.stage] || "مرحلة غير معروفة";
       const centerName = part.center ? part.center : "المركز الخارجي";
 
-      // ⚠️ الصياغة المباشرة لتنبيه المتابعة المتأخرة
+      // التعديل: تغيير "خاصة" لـ "خاص"
       const notificationTitle = "⚠️ تنبيه متابعة";
       const notificationBody = `${part.name} خاص بـ ${part.machine} لسة في مرحلة "${stageName}" بقالها ${val} ${unitAr} ... برجاء المتابعة مع ${centerName}`;
 
