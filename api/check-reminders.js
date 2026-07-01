@@ -59,6 +59,7 @@ export default async function handler(req, res) {
     for (const doc of snap.docs) {  
       const part = { id: doc.id, ...doc.data() };  
 
+      // التذكير شغال طالما القطعة لسة مش مكتملة (أقل من مرحلة 4)
       if (part.stage >= 4) continue;  
 
       const deadline = getDeadline(part);  
@@ -92,11 +93,16 @@ export default async function handler(req, res) {
     const batch = db.batch();  
 
     for (const part of toNotify) {  
-      const stageName = STAGE_NAMES[part.stage] || "مرحلة غير معروفة";
+      const val = part.reminderValue || part.reminderDays || 7;
+      const unit = part.reminderUnit || "days";
+      const unitAr = unit === "minutes" ? "دقيقة" : (unit === "hours" ? "ساعة" : "يوم");
 
-      // ⚠️ الصياغة المباشرة اللي طلبتها
+      const stageName = STAGE_NAMES[part.stage] || "مرحلة غير معروفة";
+      const centerName = part.center ? part.center : "المركز الخارجي";
+
+      // ⚠️ الصياغة المباشرة لتنبيه المتابعة المتأخرة
       const notificationTitle = "⚠️ تنبيه متابعة";
-      const notificationBody = `تنبيه متابعة : ${part.name} الخاصة بـ ${part.machine} في مرحلة ${stageName} وصلت لمدة التذكير .. يرجى المتابعة`;
+      const notificationBody = `${part.name} خاص بـ ${part.machine} لسة في مرحلة "${stageName}" بقالها ${val} ${unitAr} ... برجاء المتابعة مع ${centerName}`;
 
       await messaging.sendEachForMulticast({  
         tokens,  
