@@ -354,7 +354,7 @@ async function addPart() {
       const centerName = center ? center : "المركز الخارجي";
       notifyAndToast(
         "📤 خروج قطعة للإصلاح", 
-        `قام ${currentUser} بإرسال ${name} خاص بـ ${machine} للاصلاح لشركة ${centerName}`
+        `قام ${currentUser} بإرسال ${name} خاصة بـ ${machine} للاصلاح لشركة ${centerName}`
       ); 
     }, 3500);
 
@@ -389,10 +389,48 @@ async function updateStage(partId) {
     
     await notifyAndToast(
       `${STAGES[newStage].icon} تحديث حالة`,
-      `تحديث : قام ${currentUser} بتحديث حالة ${part.name} الخاص بـ ${part.machine} لمرحلة ${STAGES[newStage].label}`
+      `تحديث : قام ${currentUser} بتحديث حالة ${part.name} الخاصة بـ ${part.machine} لمرحلة ${STAGES[newStage].label}`
     );
     showToast("تم التحديث بنجاح ✅");
   } catch(e) { showToast("خطأ: " + e.message, true); }
+}
+
+// ⚠️ الدالة الجديدة: لتجديد التذكير في نفس المرحلة
+async function renewReminder(partId) {
+  const renewVal = parseInt(document.getElementById("renew_val_" + partId).value) || 7;
+  const renewUnit = document.getElementById("renew_unit_" + partId).value;
+
+  const part = allParts.find(p => p.id === partId);
+  if (!part) return;
+
+  const now = new Date();
+  const unitAr = renewUnit === 'minutes' ? 'دقيقة' : (renewUnit === 'hours' ? 'ساعة' : 'يوم');
+
+  // إضافة ملاحظة بسيطة في السجل عشان تبقى عارف إن التذكير اتجدد امتى
+  const history = (part.history || []).concat([{
+    stage: part.stage,
+    date: now.toISOString(),
+    by: currentUser,
+    note: `🔄 تم تجديد التذكير لمدة ${renewVal} ${unitAr}`
+  }]);
+
+  try {
+    await db.collection("parts").doc(partId).update({
+      updatedAt: now,
+      reminderValue: renewVal,
+      reminderUnit: renewUnit,
+      history: history,
+      reminderSentDate: firebase.firestore.FieldValue.delete() // بمسح الإشعار القديم عشان السيرفر يبعت تاني
+    });
+    
+    await notifyAndToast(
+      `⏳ تجديد تذكير المتابعة`,
+      `قام ${currentUser} بتجديد تذكير ${part.name} لمدة ${renewVal} ${unitAr} أخرى.`
+    );
+    showToast("تم تجديد التذكير بنجاح ✅");
+  } catch(e) {
+    showToast("خطأ: " + e.message, true);
+  }
 }
 
 function render() {
@@ -419,6 +457,7 @@ function renderCard(p) {
   const isOver = p.stage < 4 && getDeadline(p) && new Date() > getDeadline(p);
 
   const timelineHtml = STAGES.map((s, i) => {
+    // إحنا بنفلتر الهيستوري عشان نجيب التغييرات الحقيقية للمرحلة دي
     const entry = history.find(h => h.stage === i);
     const isActive = p.stage === i, isDone = p.stage > i;
     let cls = "tl-item" + (isActive ? " active" : "") + (!entry && !isActive ? " pending" : "");
@@ -453,9 +492,28 @@ function renderCard(p) {
 
   const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
   
+  // ⚠️ التعديل هنا: إضافة قسم تجديد التذكير جوه الكارت
+  const renewReminderHtml = p.stage < 4 ? `
+    <div class="update-section" style="margin-bottom: 12px; border-right: 4px solid var(--accent);">
+      <h4 style="color: var(--text);">⏳ تجديد التذكير (في نفس المرحلة)</h4>
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <div class="reminder-row" style="flex:1; padding: 4px; background: transparent; border: 1px solid var(--border);">
+          <input type="number" id="renew_val_${p.id}" value="${p.reminderValue || 7}" min="1" max="365" style="width:70px; padding:7px;" />
+          <select id="renew_unit_${p.id}" style="width:auto; padding:7px;">
+            <option value="minutes" ${p.reminderUnit === 'minutes' ? 'selected' : ''}>دقائق</option>
+            <option value="hours" ${p.reminderUnit === 'hours' ? 'selected' : ''}>ساعات</option>
+            <option value="days" ${(!p.reminderUnit || p.reminderUnit === 'days') ? 'selected' : ''}>أيام</option>
+          </select>
+        </div>
+        <button class="btn-update" style="margin-top:0; background: var(--surface2); border: 1px solid var(--border); color: var(--text);" onclick="renewReminder('${p.id}')">تجديد</button>
+      </div>
+    </div>
+  ` : '';
+
   const updateHtml = p.stage < 4 ? `
+    ${renewReminderHtml}
     <div class="update-section">
-      <h4>🔄 تحديث الحالة</h4>
+      <h4>🔄 نقل القطعة لمرحلة جديدة</h4>
       <div class="update-row">
         <div>
           <label>المرحلة الجديدة</label>
