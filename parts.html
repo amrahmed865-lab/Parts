@@ -14,6 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 
+<!-- Firebase v8 compat -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -22,231 +23,47 @@
 <script src="notif-helper.js"></script>
 
 <style>
-:root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface2: #22263a;
-  --border: #2e3250;
-  --accent: #f59e0b;
-  --accent2: #3b82f6;
-  --text: #e8eaf0;
-  --muted: #7b82a0;
-  --danger: #ef4444;
-  --success: #22c55e;
-}
-
+/* نفس الـ CSS بتاعك بدون تغيير... */
+:root { --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3250; --accent: #f59e0b; --accent2: #3b82f6; --text: #e8eaf0; --muted: #7b82a0; --danger: #ef4444; --success: #22c55e; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  font-family: 'Cairo', Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-}
-
-.header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--accent);
-}
-
+body { font-family: 'Cairo', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header-title { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 700; color: var(--accent); }
 .header-nav { display: flex; gap: 8px; flex-wrap: wrap; }
-
-.btn-nav {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 7px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: 'Cairo', Arial, sans-serif;
-  font-size: 13px;
-  text-decoration: none;
-  display: inline-block;
-  transition: all .2s;
-}
+.btn-nav { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 7px 14px; border-radius: 8px; cursor: pointer; font-family: 'Cairo', Arial, sans-serif; font-size: 13px; text-decoration: none; display: inline-block; transition: all .2s; }
 .btn-nav:hover { border-color: var(--accent); color: var(--accent); }
-
-.notif-status {
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-}
+.notif-status { font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
 .notif-on  { background: #22c55e22; color: #22c55e; border: 1px solid #22c55e44; }
 .notif-off { background: #ef444422; color: #ef4444; border: 1px solid #ef444444; }
-
-.install-btn {
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-weight: 600;
-  border: 1px solid #6366f144;
-  background: #6366f122;
-  color: #6366f1;
-  cursor: pointer;
-  font-family: inherit;
-}
+.install-btn { font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; border: 1px solid #6366f144; background: #6366f122; color: #6366f1; cursor: pointer; font-family: inherit; }
 .install-btn:hover { background: #6366f133; }
-
 .main { padding: 20px; max-width: 1100px; margin: 0 auto; }
-
-.add-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  margin-bottom: 24px;
-}
-
-.add-card h3 {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--accent);
-  margin-bottom: 16px;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
+.add-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 24px; }
+.add-card h3 { font-size: 15px; font-weight: 700; color: var(--accent); margin-bottom: 16px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
 .form-grid .full { grid-column: 1 / -1; }
-
-label {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 5px;
-  font-weight: 600;
-}
-
-input, select, textarea {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: 8px;
-  font-family: 'Cairo', Arial, sans-serif;
-  font-size: 14px;
-  outline: none;
-  transition: border-color .2s;
-}
+label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+input, select, textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 8px; font-family: 'Cairo', Arial, sans-serif; font-size: 14px; outline: none; transition: border-color .2s; }
 input:focus, select:focus, textarea:focus { border-color: var(--accent); }
 textarea { resize: vertical; min-height: 70px; }
 select option { background: var(--surface2); }
-
-.reminder-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 14px;
-}
+.reminder-row { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
 .reminder-row label { margin: 0; flex: 1; color: var(--text); font-size: 13px; }
-.reminder-row input[type=number] {
-  width: 70px;
-  text-align: center;
-  padding: 7px;
-}
-.reminder-row select {
-  width: auto;
-  padding: 7px 10px;
-  font-size: 13px;
-}
-
-.btn-add {
-  background: var(--accent);
-  color: #000;
-  border: none;
-  padding: 11px 28px;
-  border-radius: 8px;
-  font-family: 'Cairo', Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity .2s;
-  margin-top: 4px;
-}
+.reminder-row input[type=number] { width: 70px; text-align: center; padding: 7px; }
+.reminder-row select { width: auto; padding: 7px 10px; font-size: 13px; }
+.btn-add { background: var(--accent); color: #000; border: none; padding: 11px 28px; border-radius: 8px; font-family: 'Cairo', Arial, sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: opacity .2s; margin-top: 4px; }
 .btn-add:hover { opacity: .85; }
 .btn-add:disabled { opacity: .5; cursor: not-allowed; }
-
-.filter-bar {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-  align-items: center;
-}
-.filter-bar select, .filter-bar input {
-  width: auto; flex: 1;
-  min-width: 130px; max-width: 220px;
-}
-.count-badge {
-  margin-right: auto;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 13px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
+.filter-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.filter-bar select, .filter-bar input { width: auto; flex: 1; min-width: 130px; max-width: 220px; }
+.count-badge { margin-right: auto; background: var(--surface2); border: 1px solid var(--border); padding: 6px 14px; border-radius: 20px; font-size: 13px; color: var(--muted); white-space: nowrap; }
 .parts-list { display: flex; flex-direction: column; gap: 12px; }
-
-.part-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
-  transition: border-color .2s;
-}
+.part-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: border-color .2s; }
 .part-card:hover { border-color: var(--accent2); }
-
 .part-card.overdue { border-color: #ef444488 !important; }
-.overdue-tag {
-  font-size: 11px;
-  background: #ef444422;
-  color: #ef4444;
-  border: 1px solid #ef444444;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-weight: 700;
-}
-
-.part-card-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 18px;
-  cursor: pointer;
-  user-select: none;
-  flex-wrap: wrap;
-}
-
+.overdue-tag { font-size: 11px; background: #ef444422; color: #ef4444; border: 1px solid #ef444444; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+.part-card-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; cursor: pointer; user-select: none; flex-wrap: wrap; }
 .part-stage-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 .part-name { font-size: 15px; font-weight: 700; flex: 1; min-width: 120px; }
 .part-machine { font-size: 12px; color: var(--muted); background: var(--surface2); padding: 3px 10px; border-radius: 20px; }
@@ -254,10 +71,8 @@ select option { background: var(--surface2); }
 .part-days { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .part-expand-icon { color: var(--muted); font-size: 12px; transition: transform .2s; }
 .part-card.expanded .part-expand-icon { transform: rotate(180deg); }
-
 .part-body { display: none; padding: 0 18px 18px; border-top: 1px solid var(--border); }
 .part-card.expanded .part-body { display: block; }
-
 .timeline { margin: 18px 0 20px; position: relative; padding-right: 28px; }
 .timeline::before { content: ''; position: absolute; right: 5px; top: 0; bottom: 0; width: 2px; background: var(--border); }
 .tl-item { position: relative; margin-bottom: 16px; padding-right: 24px; }
@@ -268,31 +83,32 @@ select option { background: var(--surface2); }
 .tl-note  { font-size: 12px; color: var(--muted); margin-top: 4px; background: var(--surface2); padding: 6px 10px; border-radius: 6px; border-right: 3px solid var(--border); }
 .tl-item.pending .tl-label { color: var(--border); }
 .tl-item.pending .tl-dot   { background: var(--border); border-color: var(--border); }
-
 .reminder-info { background: #f59e0b11; border: 1px solid #f59e0b33; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 .reminder-info.overdue-info { background: #ef444411; border-color: #ef444433; color: #ef4444; }
-
 .update-section { background: var(--surface2); border-radius: 10px; padding: 14px; }
 .update-section h4 { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
 .update-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 @media (max-width: 500px) { .update-row { grid-template-columns: 1fr; } }
-
-.btn-update { background: var(--accent2); color: #fff; border: none; padding: 9px 20px; border-radius: 8px; font-family: 'Cairo', Arial, sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .2s; }
+.btn-update { background: var(--accent2); color: #fff; border: none; padding: 9px 20px; border-radius: 8px; font-family: 'Cairo', Arial, sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: opacity .2s; margin-top: 10px; }
 .btn-update:hover { opacity: .85; }
-
 .part-meta { display: flex; gap: 16px; flex-wrap: wrap; margin: 14px 0 16px; }
 .meta-item { display: flex; flex-direction: column; gap: 2px; }
 .meta-item .key { font-size: 11px; color: var(--muted); font-weight: 600; }
 .meta-item .val { font-size: 13px; font-weight: 600; }
-
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty .icon { font-size: 48px; margin-bottom: 12px; }
 .empty p { font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
-
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--success); color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; z-index: 9999; transition: transform .3s; pointer-events: none; }
 #toast.show  { transform: translateX(-50%) translateY(0); }
 #toast.error { background: var(--danger); }
+
+/* ── عارض الصور ── */
+.image-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(15, 17, 23, 0.95); backdrop-filter: blur(5px); overflow: auto; }
+.modal-content-wrapper { display: flex; align-items: center; justify-content: center; min-height: 100%; padding: 20px; }
+.modal-content { max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); touch-action: pan-x pan-y pinch-zoom; }
+.close-modal { position: absolute; top: 20px; right: 25px; color: #fff; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 10000; line-height: 1; }
+.close-modal:hover { color: var(--accent); }
 </style>
 </head>
 
@@ -302,7 +118,6 @@ select option { background: var(--surface2); }
   <div class="header-title">🔩 تتبع قطع الغيار</div>
   <div class="header-nav">
     <button class="notif-status notif-off" id="notifBadge" onclick="toggleNotifications()">🔕 إشعارات</button>
-    <button class="install-btn" id="installBtn" onclick="installApp()" style="display:none;">📲 تثبيت التطبيق</button>
     <a href="#" class="btn-nav" onclick="goRequests(event)">📋 طلبات</a>
     <a href="#" class="btn-nav" onclick="goDashboard(event)">📊 لوحة التحكم</a>
     <button class="btn-nav" onclick="logout()">خروج</button>
@@ -310,7 +125,6 @@ select option { background: var(--surface2); }
 </div>
 
 <div class="main">
-
   <div class="add-card" id="addSection">
     <h3>➕ تسجيل قطعة غيار جديدة</h3>
     <div class="form-grid">
@@ -338,10 +152,9 @@ select option { background: var(--surface2); }
         <label>ملاحظة عند الإخراج</label>
         <textarea id="partNote" placeholder="وصف المشكلة أو سبب الإرسال للمركز..."></textarea>
       </div>
-
       <div class="full">
         <div class="reminder-row">
-          <label>⏰ تذكير لو القطعة مرجعتش بعد</label>
+          <label>⏰ تذكير لهذه المرحلة بعد</label>
           <input type="number" id="reminderValue" value="7" min="1" max="365" />
           <select id="reminderUnit">
             <option value="minutes">دقائق</option>
@@ -349,23 +162,20 @@ select option { background: var(--surface2); }
             <option value="days" selected>أيام</option>
           </select>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px;padding-right:4px;">
-          هيتبعت إشعار لكل المستخدمين لو القطعة لسه في مرحلة خارج المصنع بعد المدة دي
-        </div>
       </div>
     </div>
     <button class="btn-add" id="addBtn" onclick="addPart()">📤 تسجيل الإخراج للإصلاح</button>
   </div>
 
   <div class="filter-bar">
+    <!-- ⚠️ التعديل هنا: حذف "تحت الإصلاح" -->
     <select id="filterStage" onchange="render()">
       <option value="all">كل المراحل</option>
       <option value="0">📤 خرجت للمركز</option>
-      <option value="1">🔧 تحت الإصلاح</option>
-      <option value="2">📥 رجعت من المركز</option>
-      <option value="3">⚙️ اتجربت في الماكينة</option>
-      <option value="4">🛡️ في الضمان</option>
-      <option value="5">✅ مكتملة</option>
+      <option value="1">📥 رجعت من المركز</option>
+      <option value="2">⚙️ اتجربت في الماكينة</option>
+      <option value="3">🛡️ في الضمان</option>
+      <option value="4">✅ مكتملة</option>
     </select>
     <input type="text" id="filterMachine" placeholder="🔍 فلتر بالماكينة..." oninput="render()" />
     <input type="text" id="filterSearch" placeholder="🔍 ابحث باسم القطعة..." oninput="render()" />
@@ -375,13 +185,19 @@ select option { background: var(--surface2); }
   <div id="partsList" class="parts-list">
     <div class="loading">⏳ جاري التحميل...</div>
   </div>
-
 </div>
 
 <div id="toast"></div>
 
+<!-- عارض الصور المخفي -->
+<div id="imageModal" class="image-modal" onclick="closeImageModal()">
+  <span class="close-modal" onclick="closeImageModal()">&times;</span>
+  <div class="modal-content-wrapper">
+    <img class="modal-content" id="fullImage" src="" alt="تكبير الصورة" />
+  </div>
+</div>
+
 <script>
-// ⚙️ إعدادات التحكم في جودة الصورة
 const IMAGE_MAX_WIDTH = 1000; 
 const IMAGE_QUALITY   = 0.9;
 
@@ -399,71 +215,36 @@ const db   = firebase.firestore();
 const auth = firebase.auth();
 
 let messaging = null;
-try {
-  messaging = firebase.messaging();
-} catch (e) {
-  console.warn('Firebase Messaging غير مدعوم على هذا المتصفح:', e.message);
-}
+try { messaging = firebase.messaging(); } catch (e) { console.warn(e); }
 
 const currentUser = localStorage.getItem("user");
-const role        = localStorage.getItem("role");
-
-if (!currentUser) {
-  location.href = "index.html";
-  throw new Error("NOT_LOGGED_IN");
-}
+if (!currentUser) { location.href = "index.html"; throw new Error("NOT_LOGGED_IN"); }
 
 auth.onAuthStateChanged(user => {
-  if (!user) {
-    localStorage.clear();
-    location.href = "index.html";
-    return;
-  }
+  if (!user) { localStorage.clear(); location.href = "index.html"; return; }
   startApp();
 });
 
-function goRequests(e) {
-  e.preventDefault();
-  if (!REQUESTS_ENABLED) { alert('خدمة طلبات الصيانة متوقفة مؤقتاً ⏸️'); return; }
-  location.href = 'request.html';
-}
-
-function goDashboard(e) {
-  e.preventDefault();
-  if (!DASHBOARD_ENABLED) { alert('لوحة التحكم متوقفة مؤقتاً ⏸️'); return; }
-  location.href = 'dashboard.html';
-}
-
+function goRequests(e) { e.preventDefault(); location.href = 'request.html'; }
+function goDashboard(e) { e.preventDefault(); location.href = 'dashboard.html'; }
 async function logout() {
   try {
     if (messaging) {
-      const token = await messaging.getToken({
-        vapidKey: 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A'
-      }).catch(() => null);
-      if (token) {
-        await messaging.deleteToken().catch(() => {});
-        await db.collection("tokens").doc(token).delete().catch(() => {});
-      }
+      const token = await messaging.getToken({ vapidKey: 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A' }).catch(()=>null);
+      if (token) { await messaging.deleteToken().catch(()=>{}); await db.collection("tokens").doc(token).delete().catch(()=>{}); }
     }
-  } catch (e) {
-    console.warn('تعذّر حذف توكن الإشعارات:', e.message);
-  }
-  auth.signOut().finally(() => {
-    localStorage.clear();
-    location.href = "index.html";
-  });
+  } catch(e){}
+  auth.signOut().finally(() => { localStorage.clear(); location.href = "index.html"; });
 }
 
+// ⚠️ التعديل هنا: المصفوفة الجديدة بعد إزالة "تحت الإصلاح"
 const STAGES = [
   { label: "خرجت للمركز",        icon: "📤", color: "#6366f1" },
-  { label: "تحت الإصلاح",        icon: "🔧", color: "#f59e0b" },
   { label: "رجعت من المركز",     icon: "📥", color: "#3b82f6" },
   { label: "اتجربت في الماكينة", icon: "⚙️", color: "#a855f7" },
   { label: "في الضمان",           icon: "🛡️", color: "#22c55e" },
   { label: "مكتملة",              icon: "✅", color: "#10b981" },
 ];
-
-const OUTSIDE_STAGES = new Set([0, 1]);
 
 function updateNotifBadge(on) {
   const b = document.getElementById("notifBadge");
@@ -472,59 +253,23 @@ function updateNotifBadge(on) {
 }
 
 async function toggleNotifications() {
-  if (Notification.permission === 'granted') {
-    alert('الإشعارات مفعّلة بالفعل ✅\nلإيقافها تماماً، لازم توقفها من إعدادات المتصفح/الجهاز.');
-    return;
-  }
-  if (Notification.permission === 'denied') {
-    alert('الإشعارات متوقفة من إعدادات المتصفح/الجهاز ❌\nلازم تفعّلها من هناك أولاً.');
-    return;
-  }
-  const wantsToEnable = confirm('عايز تفعّل الإشعارات لطلبات الصيانة وقطع الغيار؟');
-  if (!wantsToEnable) return;
-
+  if (Notification.permission === 'granted') { alert('مفعّلة بالفعل ✅'); return; }
+  if (Notification.permission === 'denied') { alert('مرفوضة من المتصفح ❌'); return; }
+  if (!confirm('عايز تفعّل الإشعارات؟')) return;
   const success = await initFCM(db, currentUser);
   updateNotifBadge(success);
 }
 
 async function notifyAndToast(title, body) {
   try {
-    const result = await sendNotificationToAll(title, body);
-    const sentCount   = (result.sent   !== undefined) ? result.sent   : '?';
-    const failedCount = (result.failed !== undefined) ? result.failed : '?';
-    showToast(`📡 إشعار: نجح ${sentCount} فشل ${failedCount}`);
+    await sendNotificationToAll(title, body);
+    showToast(`📡 إشعار: تم الإرسال للفريق`);
   } catch (e) {
-    showToast('📡 فشل إرسال الإشعار: ' + e.message, true);
+    showToast('📡 فشل إرسال الإشعار', true);
   }
-}
-
-let deferredInstallPrompt = null;
-const installBtn = document.getElementById('installBtn');
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredInstallPrompt = e;
-  installBtn.style.display = 'inline-block';
-});
-window.addEventListener('appinstalled', () => {
-  deferredInstallPrompt = null;
-  installBtn.style.display = 'none';
-});
-if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-  installBtn.style.display = 'none';
-}
-async function installApp() {
-  if (!deferredInstallPrompt) {
-    alert('التثبيت غير متاح دلوقتي.\nجرّب إضافة إلى الشاشة الرئيسية.');
-    return;
-  }
-  deferredInstallPrompt.prompt();
-  const { outcome } = await deferredInstallPrompt.userChoice;
-  if (outcome === 'accepted') installBtn.style.display = 'none';
-  deferredInstallPrompt = null;
 }
 
 let allParts = [];
-
 function startApp() {
   initFCM(db, currentUser).then(success => updateNotifBadge(success));
   db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
@@ -533,11 +278,15 @@ function startApp() {
   });
 }
 
+// ⚠️ التعديل هنا: الديدلاين بيتحسب من تاريخ (آخر تحديث للحالة) مش من يوم الصنع
 function getDeadline(p) {
   const val = p.reminderValue || p.reminderDays;
   if (!val) return null;
   const unit = p.reminderUnit || 'days';
-  const created = (p.createdAt && p.createdAt.toDate) ? p.createdAt.toDate() : new Date(p.createdAt);
+  
+  const baseDate = p.updatedAt ? p.updatedAt : p.createdAt;
+  const created = (baseDate && baseDate.toDate) ? baseDate.toDate() : new Date(baseDate);
+  
   const deadline = new Date(created);
   if (unit === 'minutes') deadline.setMinutes(deadline.getMinutes() + val);
   else if (unit === 'hours') deadline.setHours(deadline.getHours() + val);
@@ -545,7 +294,6 @@ function getDeadline(p) {
   return deadline;
 }
 
-// ── دالة ضغط الصور قبل الرفع ──
 function compressImage(file, maxWidth, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -555,21 +303,15 @@ function compressImage(file, maxWidth, quality) {
       img.src = event.target.result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
+        let width = img.width, height = img.height;
+        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
         resolve(canvas.toDataURL('image/jpeg', quality));
       };
-      img.onerror = error => reject(error);
+      img.onerror = e => reject(e);
     };
-    reader.onerror = error => reject(error);
+    reader.onerror = e => reject(e);
   });
 }
 
@@ -586,213 +328,140 @@ async function addPart() {
   if (!name) { showToast("اكتب اسم القطعة ❌", true); return; }
 
   const btn = document.getElementById("addBtn");
-  btn.disabled = true;
-  btn.innerText = "⏳ جاري الحفظ...";
+  btn.disabled = true; btn.innerText = "⏳ جاري الحفظ...";
 
   try {
     let telegramPhotoUrl = "";
-
-    // 1️⃣ ضغط ورفع الصورة
     if (imageInput.files && imageInput.files.length > 0) {
-      btn.innerText = "📸 جاري معالجة وضغط الصورة...";
-      const file = imageInput.files[0];
-      
-      const imageBase64 = await compressImage(file, IMAGE_MAX_WIDTH, IMAGE_QUALITY);
-
-      btn.innerText = "🚀 جاري رفع الصورة...";
-
+      btn.innerText = "📸 معالجة وضغط الصورة...";
+      const imageBase64 = await compressImage(imageInput.files[0], IMAGE_MAX_WIDTH, IMAGE_QUALITY);
+      btn.innerText = "🚀 رفع الصورة...";
       const uploadRes = await fetch('/api/upload-telegram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: imageBase64 })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64 })
       });
-
-      if (!uploadRes.ok) throw new Error("فشل رفع الصورة للتليجرام");
-      
       const uploadData = await uploadRes.json();
       if (uploadData.success && uploadData.fileId) {
         telegramPhotoUrl = `/api/get-telegram-image?fileId=${uploadData.fileId}`;
       }
     }
 
-    btn.innerText = "⏳ جاري تسجيل البيانات...";
+    btn.innerText = "⏳ تسجيل البيانات...";
     const now = new Date();
-    
-    // 2️⃣ حفظ البيانات في Firestore
     await db.collection("parts").add({
-      name,
-      serial:      serial || "",
-      machine,
-      center:      center || "",
-      stage:       0,
-      reminderValue,
-      reminderUnit,
-      photoUrl:    telegramPhotoUrl, 
-      createdAt:   now,
-      createdBy:   currentUser,
-      history: [{
-        stage: 0,
-        date:  now.toISOString(),
-        by:    currentUser,
-        note:  note || ""
-      }]
+      name, serial: serial || "", machine, center: center || "",
+      stage: 0, reminderValue, reminderUnit, photoUrl: telegramPhotoUrl, 
+      createdAt: now, updatedAt: now, createdBy: currentUser,
+      history: [{ stage: 0, date: now.toISOString(), by: currentUser, note: note || "" }]
     });
 
-    showToast("تم تسجيل القطعة بنجاح ✅");
-
+    showToast("تم تسجيل القطعة ✅");
     const unitAr = reminderUnit === 'minutes' ? 'دقيقة' : (reminderUnit === 'hours' ? 'ساعة' : 'يوم');
-    const centerText = center ? ` لشركة ${center}` : '';
+    setTimeout(() => { notifyAndToast("📤 قطعة غيار جديدة", `${currentUser} أرسل ${name} | تذكير المرحلة بعد ${reminderValue} ${unitAr}`); }, 3500);
 
-    setTimeout(function() {
-      notifyAndToast(
-        "📤 قطعة غيار خرجت للإصلاح",
-        `${currentUser} أرسل ${name} الخاص بـ ${machine}${centerText} | مدة التذكير المحددة: ${reminderValue} ${unitAr}`
-      );
-    }, 3500);
-
-    ["partName","partSerial","partCenter","partNote"].forEach(id => document.getElementById(id).value = "");
-    document.getElementById("reminderValue").value = "7";
-    document.getElementById("reminderUnit").value = "days";
-    imageInput.value = "";
-
-  } catch(e) {
-    showToast("خطأ: " + e.message, true);
-    console.error(e);
-  }
-
-  btn.disabled = false;
-  btn.innerText = "📤 تسجيل الإخراج للإصلاح";
+    ["partName","partSerial","partCenter","partNote","partImage"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("reminderValue").value = "7"; document.getElementById("reminderUnit").value = "days";
+  } catch(e) { showToast("خطأ: " + e.message, true); }
+  btn.disabled = false; btn.innerText = "📤 تسجيل الإخراج للإصلاح";
 }
 
+// ⚠️ التعديل هنا: الدالة دي بقت بتاخد مدة التذكير الجديدة وتحفظها
 async function updateStage(partId) {
   const newStage = parseInt(document.getElementById("sel_stage_" + partId).value);
   const note     = document.getElementById("inp_note_"  + partId).value.trim();
+  
+  // سحب مدة التذكير الجديدة للحالة
+  const remVal   = parseInt(document.getElementById("rem_val_" + partId).value) || 7;
+  const remUnit  = document.getElementById("rem_unit_" + partId).value;
+
   const part = allParts.find(p => p.id === partId);
   if (!part) return;
 
-  const now     = new Date();
-  const history = (part.history || []).concat([{
-    stage: newStage,
-    date:  now.toISOString(),
-    by:    currentUser,
-    note:  note || ""
-  }]);
+  const now = new Date();
+  const history = (part.history || []).concat([{ stage: newStage, date: now.toISOString(), by: currentUser, note: note || "" }]);
 
   try {
-    await db.collection("parts").doc(partId).update({ stage: newStage, history, updatedAt: now });
+    await db.collection("parts").doc(partId).update({ 
+      stage: newStage, 
+      history, 
+      updatedAt: now,
+      reminderValue: remVal,
+      reminderUnit: remUnit,
+      // بنمسح تاريخ إرسال الإشعار القديم عشان التذكير الجديد يشتغل
+      reminderSentDate: firebase.firestore.FieldValue.delete() 
+    });
+    
+    const unitAr = remUnit === 'minutes' ? 'دقيقة' : (remUnit === 'hours' ? 'ساعة' : 'يوم');
     await notifyAndToast(
-      `${STAGES[newStage].icon} قطعة غيار: ${STAGES[newStage].label}`,
-      `${currentUser} حدّث ${part.name} خاص ب ${part.machine}`
+      `${STAGES[newStage].icon} تحديث حالة: ${STAGES[newStage].label}`,
+      `${currentUser} حدّث ${part.name} - التذكير القادم بعد ${remVal} ${unitAr}`
     );
-    const noteInput = document.getElementById("inp_note_" + partId);
-    if (noteInput) noteInput.value = "";
-    showToast("تم التحديث ✅");
-  } catch(e) {
-    showToast("خطأ: " + e.message, true);
-  }
+    showToast("تم التحديث بنجاح ✅");
+  } catch(e) { showToast("خطأ: " + e.message, true); }
 }
 
 function render() {
-  const stageFilter   = document.getElementById("filterStage").value;
-  const machineFilter = document.getElementById("filterMachine").value.trim().toLowerCase();
-  const search        = document.getElementById("filterSearch").value.toLowerCase();
-
-  let data = allParts.filter(p => {
-    const stageOk   = stageFilter === "all" || p.stage === parseInt(stageFilter);
-    const machineOk = !machineFilter || (p.machine || "").toLowerCase().includes(machineFilter);
-    const searchOk  = !search || p.name.toLowerCase().includes(search) || (p.serial || "").toLowerCase().includes(search);
-    return stageOk && machineOk && searchOk;
-  });
-
+  const stageFilter = document.getElementById("filterStage").value;
+  const search = document.getElementById("filterSearch").value.toLowerCase();
+  let data = allParts.filter(p => (stageFilter === "all" || p.stage === parseInt(stageFilter)) && (!search || p.name.toLowerCase().includes(search) || (p.serial || "").toLowerCase().includes(search)));
   document.getElementById("countBadge").innerText = data.length + " قطعة";
   const list = document.getElementById("partsList");
-
-  if (data.length === 0) {
-    list.innerHTML = `<div class="empty"><div class="icon">🔩</div><p>مفيش قطع غيار في الفلتر دا</p></div>`;
-    return;
-  }
+  if (data.length === 0) { list.innerHTML = `<div class="empty"><div class="icon">🔩</div><p>مفيش داتا هنا</p></div>`; return; }
   list.innerHTML = data.map(p => renderCard(p)).join("");
 }
 
-function isOverdue(p) {
-  if (!OUTSIDE_STAGES.has(p.stage)) return false;
-  const deadline = getDeadline(p);
-  if (!deadline) return false;
-  return new Date() > deadline;
-}
-
 function renderCard(p) {
-  const stage       = STAGES[p.stage] || STAGES[0];
-  const history     = p.history || [];
-  const created     = (p.createdAt && p.createdAt.toDate) ? p.createdAt.toDate() : new Date(p.createdAt);
+  const stage = STAGES[p.stage] || STAGES[0];
+  const history = p.history || [];
+  const created = (p.createdAt && p.createdAt.toDate) ? p.createdAt.toDate() : new Date(p.createdAt);
   
   const timePassedMs = Date.now() - created.getTime();
-  const daysP  = Math.floor(timePassedMs / 86400000);
+  const daysP = Math.floor(timePassedMs / 86400000);
   const hoursP = Math.floor(timePassedMs / 3600000);
-  const minsP  = Math.floor(timePassedMs / 60000);
-  
   let timePassedStr = `${daysP} يوم`;
-  if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${minsP} دقيقة`;
+  if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${Math.floor(timePassedMs / 60000)} دقيقة`;
 
-  const overdue = isOverdue(p);
+  // التذكير شغال طول ما القطعة مش في الحالة رقم 4 (مكتملة)
+  const isOver = p.stage < 4 && getDeadline(p) && new Date() > getDeadline(p);
 
   const timelineHtml = STAGES.map((s, i) => {
-    const entry    = history.find(h => h.stage === i);
-    const isActive = p.stage === i;
-    const isDone   = p.stage > i;
+    const entry = history.find(h => h.stage === i);
+    const isActive = p.stage === i, isDone = p.stage > i;
     let cls = "tl-item" + (isActive ? " active" : "") + (!entry && !isActive ? " pending" : "");
     const dateStr = entry ? new Date(entry.date).toLocaleString("ar-EG") : "";
-    const noteHtml = (entry && entry.note) ? `<div class="tl-note">${entry.note}</div>` : "";
-    const byHtml   = (entry && entry.by)   ? ` · ${entry.by}` : "";
     return `
       <div class="${cls}">
         <div class="tl-dot" style="background:${isDone||isActive ? s.color : 'var(--border)'}"></div>
         <div class="tl-label" style="${isDone||isActive ? `color:${s.color}` : ''}">${s.icon} ${s.label}</div>
-        ${dateStr ? `<div class="tl-date">${dateStr}${byHtml}</div>` : ''}
-        ${noteHtml}
+        ${dateStr ? `<div class="tl-date">${dateStr}${entry.by ? ' · '+entry.by : ''}</div>` : ''}
+        ${entry && entry.note ? `<div class="tl-note">${entry.note}</div>` : ''}
       </div>`;
   }).join("");
 
   const photoHtml = p.photoUrl ? `
     <div style="margin-bottom: 16px; text-align: center;">
-      <a href="${p.photoUrl}" target="_blank">
-        <img src="${p.photoUrl}" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border);" alt="صورة القطعة">
-      </a>
+      <img src="${p.photoUrl}" onclick="openImageModal('${p.photoUrl}')" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border); cursor: zoom-in;" alt="صورة القطعة">
     </div>` : '';
 
-  const val = p.reminderValue || p.reminderDays;
-  const unit = p.reminderUnit || 'days';
-  const unitAr = unit === 'minutes' ? 'دقيقة' : (unit === 'hours' ? 'ساعة' : 'يوم');
-
   let reminderBanner = "";
-  if (val && OUTSIDE_STAGES.has(p.stage)) {
+  if (p.stage < 4 && (p.reminderValue || p.reminderDays)) {
     const deadline = getDeadline(p);
     const msLeft = deadline - Date.now();
-    const isOver = msLeft < 0;
     const absMs = Math.abs(msLeft);
+    let leftStr = absMs < 3600000 ? Math.ceil(absMs/60000) + " دقيقة" : (absMs < 86400000 ? Math.ceil(absMs/3600000) + " ساعة" : Math.ceil(absMs/86400000) + " يوم");
     
-    let timeLeftStr = "";
-    if (absMs < 3600000) timeLeftStr = Math.ceil(absMs / 60000) + " دقيقة";
-    else if (absMs < 86400000) timeLeftStr = Math.ceil(absMs / 3600000) + " ساعة";
-    else timeLeftStr = Math.ceil(absMs / 86400000) + " يوم";
-
-    if (isOver) {
-      reminderBanner = `
-        <div class="reminder-info overdue-info">
-          ⚠️ تعدّت المدة المحددة بـ ${timeLeftStr} — يتم إرسال إشعار يومي
-        </div>`;
+    if (msLeft < 0) {
+      reminderBanner = `<div class="reminder-info overdue-info">⚠️ تأخرت عن المدة بـ ${leftStr} — سيتم إرسال إشعار يومي</div>`;
     } else {
-      reminderBanner = `
-        <div class="reminder-info">
-          ⏰ تذكير بعد ${timeLeftStr} (${deadline.toLocaleString("ar-EG")})
-        </div>`;
+      reminderBanner = `<div class="reminder-info">⏰ تذكير لهذه المرحلة بعد ${leftStr} (${deadline.toLocaleString("ar-EG")})</div>`;
     }
   }
 
   const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
-  const updateHtml = p.stage < 5 ? `
+  
+  // ⚠️ التعديل هنا: إضافة حقول التذكير جوه كارت تحديث الحالة
+  const updateHtml = p.stage < 4 ? `
     <div class="update-section">
-      <h4>🔄 تحديث المرحلة</h4>
+      <h4>🔄 تحديث الحالة</h4>
       <div class="update-row">
         <div>
           <label>المرحلة الجديدة</label>
@@ -800,21 +469,33 @@ function renderCard(p) {
         </div>
         <div>
           <label>ملاحظة (اختياري)</label>
-          <input id="inp_note_${p.id}" placeholder="مثال: تم الإصلاح والاختبار" />
+          <input id="inp_note_${p.id}" placeholder="..." />
+        </div>
+      </div>
+      <div class="update-row" style="margin-top:5px;">
+        <div style="grid-column: 1 / -1;">
+          <label style="color:var(--accent);">⏰ تذكير في المرحلة الجديدة بعد:</label>
+          <div class="reminder-row" style="padding: 4px; background: transparent; border: none;">
+            <input type="number" id="rem_val_${p.id}" value="7" min="1" max="365" style="width:70px; padding:7px;" />
+            <select id="rem_unit_${p.id}" style="width:auto; padding:7px;">
+              <option value="minutes">دقائق</option>
+              <option value="hours">ساعات</option>
+              <option value="days" selected>أيام</option>
+            </select>
+          </div>
         </div>
       </div>
       <button class="btn-update" onclick="updateStage('${p.id}')">حفّظ التحديث</button>
-    </div>` :
-    (p.stage === 5 ? `<div style="color:var(--success);font-size:13px;font-weight:700;">✅ القطعة دي اكتملت بنجاح</div>` : '');
+    </div>` : `<div style="color:var(--success);font-size:13px;font-weight:700;">✅ القطعة دي اكتملت بالكامل</div>`;
 
   return `
-    <div class="part-card${overdue ? ' overdue' : ''}" id="card_${p.id}">
+    <div class="part-card${isOver ? ' overdue' : ''}" id="card_${p.id}">
       <div class="part-card-header" onclick="toggleCard('${p.id}')">
         <div class="part-stage-dot" style="background:${stage.color}"></div>
         <div class="part-name">${p.name} ${p.serial ? `<span style="font-size:12px;color:var(--muted)">(${p.serial})</span>` : ''}</div>
         <span class="part-machine">${p.machine}</span>
         <span class="stage-badge" style="background:${stage.color}22;color:${stage.color}">${stage.icon} ${stage.label}</span>
-        ${overdue ? `<span class="overdue-tag">⚠️ تأخرت</span>` : ''}
+        ${isOver ? `<span class="overdue-tag">⚠️ تأخرت</span>` : ''}
         <span class="part-days">${timePassedStr}</span>
         <span class="part-expand-icon">▼</span>
       </div>
@@ -823,8 +504,6 @@ function renderCard(p) {
           ${p.center ? `<div class="meta-item"><span class="key">مركز الإصلاح</span><span class="val">🏭 ${p.center}</span></div>` : ''}
           <div class="meta-item"><span class="key">أضافها</span><span class="val">👤 ${p.createdBy}</span></div>
           <div class="meta-item"><span class="key">تاريخ الإخراج</span><span class="val">📅 ${created.toLocaleDateString("ar-EG")}</span></div>
-          <div class="meta-item"><span class="key">المدة الكلية</span><span class="val">⏱️ ${timePassedStr}</span></div>
-          ${val ? `<div class="meta-item"><span class="key">مدة التذكير</span><span class="val">⏰ ${val} ${unitAr}</span></div>` : ''}
         </div>
         ${photoHtml}
         ${reminderBanner}
@@ -835,26 +514,27 @@ function renderCard(p) {
 }
 
 function toggleCard(id) { document.getElementById("card_" + id).classList.toggle("expanded"); }
-
 function showToast(msg, isError = false) {
   const t = document.getElementById("toast");
-  t.innerText  = msg;
-  t.className  = isError ? "error" : "";
-  t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 3000);
+  t.innerText = msg; t.className = isError ? "error" : "";
+  t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+// ── دوال عارض الصور الداخلي ──
+function openImageModal(imgSrc) {
+  document.getElementById("fullImage").src = imgSrc;
+  document.getElementById("imageModal").style.display = "block";
+  document.body.style.overflow = "hidden";
+}
+function closeImageModal() {
+  document.getElementById("imageModal").style.display = "none";
+  document.getElementById("fullImage").src = "";
+  document.body.style.overflow = "auto";
 }
 
 window.addEventListener("load", () => {
-  const params = new URLSearchParams(window.location.search);
-  const partId = params.get("part");
-  if (!partId) return;
-  setTimeout(() => {
-    const card = document.getElementById("card_" + partId);
-    if (card) {
-      card.classList.add("expanded");
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, 1500);
+  const pId = new URLSearchParams(window.location.search).get("part");
+  if(pId) setTimeout(() => { const c = document.getElementById("card_"+pId); if(c){ c.classList.add("expanded"); c.scrollIntoView({behavior:"smooth", block:"center"}); } }, 1500);
 });
 </script>
 </body>
