@@ -354,7 +354,7 @@ async function addPart() {
       const centerName = center ? center : "المركز الخارجي";
       notifyAndToast(
         "📤 خروج قطعة للإصلاح", 
-        `قام ${currentUser} بإرسال ${name} خاصة بـ ${machine} للاصلاح لشركة ${centerName}`
+        `قام ${currentUser} بإرسال ${name} خاص بـ ${machine} للاصلاح لشركة ${centerName}`
       ); 
     }, 3500);
 
@@ -389,7 +389,7 @@ async function updateStage(partId) {
     
     await notifyAndToast(
       `${STAGES[newStage].icon} تحديث حالة`,
-      `تحديث : قام ${currentUser} بتحديث حالة ${part.name} الخاصة بـ ${part.machine} لمرحلة ${STAGES[newStage].label}`
+      `تحديث : قام ${currentUser} بتحديث حالة ${part.name} الخاص بـ ${part.machine} لمرحلة ${STAGES[newStage].label}`
     );
     showToast("تم التحديث بنجاح ✅");
   } catch(e) { showToast("خطأ: " + e.message, true); }
