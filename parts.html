@@ -6,6 +6,10 @@
 <title>تتبع قطع الغيار</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ff0000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="نظام الصيانة">
+<link rel="apple-touch-icon" href="/icon-192.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -326,6 +330,10 @@ select option { background: var(--surface2); }
         <label>مركز الإصلاح الخارجي</label>
         <input id="partCenter" placeholder="اسم الشركة / المركز" />
       </div>
+      <div>
+        <label>📸 صورة القطعة (اختياري)</label>
+        <input type="file" id="partImage" accept="image/*" capture="environment" style="background: var(--surface2); padding: 7px; cursor: pointer; color: var(--text); border: 1px solid var(--border); border-radius: 8px; width: 100%;" />
+      </div>
       <div class="full">
         <label>ملاحظة عند الإخراج</label>
         <textarea id="partNote" placeholder="وصف المشكلة أو سبب الإرسال للمركز..."></textarea>
@@ -562,6 +570,7 @@ async function addPart() {
   const note          = document.getElementById("partNote").value.trim();
   const reminderValue = parseInt(document.getElementById("reminderValue").value) || 7;
   const reminderUnit  = document.getElementById("reminderUnit").value;
+  const imageInput    = document.getElementById("partImage");
 
   if (!name) { showToast("اكتب اسم القطعة ❌", true); return; }
 
@@ -570,7 +579,29 @@ async function addPart() {
   btn.innerText = "⏳ جاري الحفظ...";
 
   try {
+    let telegramPhotoUrl = "";
+
+    // 1️⃣ رفع الصورة للتليجرام لو موجودة
+    if (imageInput.files && imageInput.files.length > 0) {
+      btn.innerText = "📸 جاري رفع الصورة...";
+      const formData = new FormData();
+      formData.append("file", imageInput.files[0]);
+      
+      const uploadRes = await fetch('/api/upload-telegram', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!uploadRes.ok) throw new Error("فشل رفع الصورة للتليجرام");
+      
+      const uploadData = await uploadRes.json();
+      telegramPhotoUrl = uploadData.url || uploadData.photoUrl || uploadData.fileId || ""; 
+    }
+
+    btn.innerText = "⏳ جاري تسجيل البيانات...";
     const now = new Date();
+    
+    // 2️⃣ حفظ البيانات في Firestore مع رابط الصورة
     await db.collection("parts").add({
       name,
       serial:      serial || "",
@@ -579,6 +610,7 @@ async function addPart() {
       stage:       0,
       reminderValue,
       reminderUnit,
+      photoUrl:    telegramPhotoUrl, // رابط الصورة
       createdAt:   now,
       createdBy:   currentUser,
       history: [{
@@ -589,7 +621,7 @@ async function addPart() {
       }]
     });
 
-    showToast("تم تسجيل القطعة ✅");
+    showToast("تم تسجيل القطعة بنجاح ✅");
 
     const unitAr = reminderUnit === 'minutes' ? 'دقيقة' : (reminderUnit === 'hours' ? 'ساعة' : 'يوم');
     const centerText = center ? ` لشركة ${center}` : '';
@@ -601,9 +633,12 @@ async function addPart() {
       );
     }, 3500);
 
+    // 3️⃣ تفريغ الحقول بعد النجاح
     ["partName","partSerial","partCenter","partNote"].forEach(id => document.getElementById(id).value = "");
     document.getElementById("reminderValue").value = "7";
     document.getElementById("reminderUnit").value = "days";
+    imageInput.value = ""; // تفريغ حقل الصورة
+
   } catch(e) {
     showToast("خطأ: " + e.message, true);
   }
@@ -702,6 +737,14 @@ function renderCard(p) {
       </div>`;
   }).join("");
 
+  // ── بناء HTML لعرض الصورة ──
+  const photoHtml = p.photoUrl ? `
+    <div style="margin-bottom: 16px; text-align: center;">
+      <a href="${p.photoUrl}" target="_blank">
+        <img src="${p.photoUrl}" style="max-width: 100%; max-height: 250px; border-radius: 8px; border: 1px solid var(--border);" alt="صورة القطعة">
+      </a>
+    </div>` : '';
+
   const val = p.reminderValue || p.reminderDays;
   const unit = p.reminderUnit || 'days';
   const unitAr = unit === 'minutes' ? 'دقيقة' : (unit === 'hours' ? 'ساعة' : 'يوم');
@@ -768,6 +811,7 @@ function renderCard(p) {
           <div class="meta-item"><span class="key">المدة الكلية</span><span class="val">⏱️ ${timePassedStr}</span></div>
           ${val ? `<div class="meta-item"><span class="key">مدة التذكير</span><span class="val">⏰ ${val} ${unitAr}</span></div>` : ''}
         </div>
+        ${photoHtml}
         ${reminderBanner}
         <div class="timeline">${timelineHtml}</div>
         ${updateHtml}
