@@ -23,7 +23,6 @@
 <script src="notif-helper.js"></script>
 
 <style>
-/* نفس الـ CSS بتاعك بدون تغيير... */
 :root { --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3250; --accent: #f59e0b; --accent2: #3b82f6; --text: #e8eaf0; --muted: #7b82a0; --danger: #ef4444; --success: #22c55e; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Cairo', Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
@@ -168,7 +167,6 @@ select option { background: var(--surface2); }
   </div>
 
   <div class="filter-bar">
-    <!-- ⚠️ التعديل هنا: حذف "تحت الإصلاح" -->
     <select id="filterStage" onchange="render()">
       <option value="all">كل المراحل</option>
       <option value="0">📤 خرجت للمركز</option>
@@ -237,7 +235,6 @@ async function logout() {
   auth.signOut().finally(() => { localStorage.clear(); location.href = "index.html"; });
 }
 
-// ⚠️ التعديل هنا: المصفوفة الجديدة بعد إزالة "تحت الإصلاح"
 const STAGES = [
   { label: "خرجت للمركز",        icon: "📤", color: "#6366f1" },
   { label: "رجعت من المركز",     icon: "📥", color: "#3b82f6" },
@@ -278,7 +275,6 @@ function startApp() {
   });
 }
 
-// ⚠️ التعديل هنا: الديدلاين بيتحسب من تاريخ (آخر تحديث للحالة) مش من يوم الصنع
 function getDeadline(p) {
   const val = p.reminderValue || p.reminderDays;
   if (!val) return null;
@@ -355,8 +351,13 @@ async function addPart() {
     });
 
     showToast("تم تسجيل القطعة ✅");
-    const unitAr = reminderUnit === 'minutes' ? 'دقيقة' : (reminderUnit === 'hours' ? 'ساعة' : 'يوم');
-    setTimeout(() => { notifyAndToast("📤 قطعة غيار جديدة", `${currentUser} أرسل ${name} | تذكير المرحلة بعد ${reminderValue} ${unitAr}`); }, 3500);
+    
+    setTimeout(() => { 
+      notifyAndToast(
+        "📤 خروج قطعة للإصلاح", 
+        `قام ${currentUser} بتسجيل خروج ${name} الخاصة بـ ${machine} للإصلاح`
+      ); 
+    }, 3500);
 
     ["partName","partSerial","partCenter","partNote","partImage"].forEach(id => document.getElementById(id).value = "");
     document.getElementById("reminderValue").value = "7"; document.getElementById("reminderUnit").value = "days";
@@ -364,12 +365,10 @@ async function addPart() {
   btn.disabled = false; btn.innerText = "📤 تسجيل الإخراج للإصلاح";
 }
 
-// ⚠️ التعديل هنا: الدالة دي بقت بتاخد مدة التذكير الجديدة وتحفظها
 async function updateStage(partId) {
   const newStage = parseInt(document.getElementById("sel_stage_" + partId).value);
   const note     = document.getElementById("inp_note_"  + partId).value.trim();
   
-  // سحب مدة التذكير الجديدة للحالة
   const remVal   = parseInt(document.getElementById("rem_val_" + partId).value) || 7;
   const remUnit  = document.getElementById("rem_unit_" + partId).value;
 
@@ -386,14 +385,12 @@ async function updateStage(partId) {
       updatedAt: now,
       reminderValue: remVal,
       reminderUnit: remUnit,
-      // بنمسح تاريخ إرسال الإشعار القديم عشان التذكير الجديد يشتغل
       reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
-    const unitAr = remUnit === 'minutes' ? 'دقيقة' : (remUnit === 'hours' ? 'ساعة' : 'يوم');
     await notifyAndToast(
-      `${STAGES[newStage].icon} تحديث حالة: ${STAGES[newStage].label}`,
-      `${currentUser} حدّث ${part.name} - التذكير القادم بعد ${remVal} ${unitAr}`
+      `${STAGES[newStage].icon} تحديث حالة`,
+      `تحديث : قام ${currentUser} بتحديث حالة ${part.name} الخاصة بـ ${part.machine} لمرحلة ${STAGES[newStage].label}`
     );
     showToast("تم التحديث بنجاح ✅");
   } catch(e) { showToast("خطأ: " + e.message, true); }
@@ -420,7 +417,6 @@ function renderCard(p) {
   let timePassedStr = `${daysP} يوم`;
   if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${Math.floor(timePassedMs / 60000)} دقيقة`;
 
-  // التذكير شغال طول ما القطعة مش في الحالة رقم 4 (مكتملة)
   const isOver = p.stage < 4 && getDeadline(p) && new Date() > getDeadline(p);
 
   const timelineHtml = STAGES.map((s, i) => {
@@ -458,7 +454,6 @@ function renderCard(p) {
 
   const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
   
-  // ⚠️ التعديل هنا: إضافة حقول التذكير جوه كارت تحديث الحالة
   const updateHtml = p.stage < 4 ? `
     <div class="update-section">
       <h4>🔄 تحديث الحالة</h4>
