@@ -14,7 +14,15 @@ if (!getApps().length) {
   });
 }
 
-// التعديل هنا: بنحسب الديدلاين من تاريخ "آخر تحديث updatedAt" لو موجود
+// ⚠️ إضافة مصفوفة بأسماء الحالات عشان تظهر في الإشعار
+const STAGE_NAMES = [
+  "خرجت للمركز",        // 0
+  "رجعت من المركز",     // 1
+  "اتجربت في الماكينة", // 2
+  "في الضمان",           // 3
+  "مكتملة"              // 4
+];
+
 function getDeadline(part) {
   const val = part.reminderValue || part.reminderDays;
   const unit = part.reminderUnit || "days";
@@ -52,7 +60,7 @@ export default async function handler(req, res) {
     for (const doc of snap.docs) {  
       const part = { id: doc.id, ...doc.data() };  
 
-      // ⚠️ التعديل هنا: التذكير يفضل شغال طالما القطعة مرحلتها أقل من 4 (يعني لسه مش مكتملة)
+      // التذكير شغال طول ما القطعة لسه مش مكتملة
       if (part.stage >= 4) continue;  
 
       const deadline = getDeadline(part);  
@@ -90,8 +98,13 @@ export default async function handler(req, res) {
       const unit = part.reminderUnit || "days";
       const unitAr = unit === "minutes" ? "دقيقة" : (unit === "hours" ? "ساعة" : "يوم");
 
+      // ⚠️ تحديد اسم المرحلة بناءً على رقمها في قاعدة البيانات
+      const stageName = STAGE_NAMES[part.stage] || "مرحلة غير معروفة";
+
       const notificationTitle = "⚠️ تذكير: قطعة صيانة متأخرة!";
-      const notificationBody = `القطعة (${part.name}) للماكينة (${part.machine}) تأخرت عن الوقت المحدد لهذه المرحلة (${val} ${unitAr}).`;
+      
+      // ⚠️ تعديل نص الإشعار ليتضمن اسم المرحلة
+      const notificationBody = `القطعة (${part.name}) للماكينة (${part.machine}) تأخرت في مرحلة "${stageName}" عن الوقت المحدد (${val} ${unitAr}).`;
 
       await messaging.sendEachForMulticast({  
         tokens,  
