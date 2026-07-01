@@ -381,6 +381,10 @@ select option { background: var(--surface2); }
 <div id="toast"></div>
 
 <script>
+// ⚙️ إعدادات التحكم في جودة الصورة
+const IMAGE_MAX_WIDTH = 1000; 
+const IMAGE_QUALITY   = 0.9;
+
 const firebaseConfig = {
  apiKey: "AIzaSyDZ1RAn4fIN6Rqc-b5-BoHiiNFQ9GvZZJA",
   authDomain: "parts-7e82e.firebaseapp.com",
@@ -406,10 +410,9 @@ const role        = localStorage.getItem("role");
 
 if (!currentUser) {
   location.href = "index.html";
-  throw new Error("NOT_LOGGED_IN"); // وقف تنفيذ باقي الكود فوراً
+  throw new Error("NOT_LOGGED_IN");
 }
 
-// تأكيد حقيقي من فايربيز إن فيه جلسة دخول صحيحة قبل أي تعامل مع قاعدة البيانات
 auth.onAuthStateChanged(user => {
   if (!user) {
     localStorage.clear();
@@ -421,19 +424,13 @@ auth.onAuthStateChanged(user => {
 
 function goRequests(e) {
   e.preventDefault();
-  if (!REQUESTS_ENABLED) {
-    alert('خدمة طلبات الصيانة متوقفة مؤقتاً ⏸️');
-    return;
-  }
+  if (!REQUESTS_ENABLED) { alert('خدمة طلبات الصيانة متوقفة مؤقتاً ⏸️'); return; }
   location.href = 'request.html';
 }
 
 function goDashboard(e) {
   e.preventDefault();
-  if (!DASHBOARD_ENABLED) {
-    alert('لوحة التحكم متوقفة مؤقتاً ⏸️');
-    return;
-  }
+  if (!DASHBOARD_ENABLED) { alert('لوحة التحكم متوقفة مؤقتاً ⏸️'); return; }
   location.href = 'dashboard.html';
 }
 
@@ -443,7 +440,6 @@ async function logout() {
       const token = await messaging.getToken({
         vapidKey: 'BMSMjWqfwasyn7XybR4j17mn0PBtEPeb_i6GxPQohaXEDteaW2R0eMtD4rdPTTe0SyYi6ajf_wLq_o4lxPnfb4A'
       }).catch(() => null);
-
       if (token) {
         await messaging.deleteToken().catch(() => {});
         await db.collection("tokens").doc(token).delete().catch(() => {});
@@ -452,7 +448,6 @@ async function logout() {
   } catch (e) {
     console.warn('تعذّر حذف توكن الإشعارات:', e.message);
   }
-
   auth.signOut().finally(() => {
     localStorage.clear();
     location.href = "index.html";
@@ -481,12 +476,10 @@ async function toggleNotifications() {
     alert('الإشعارات مفعّلة بالفعل ✅\nلإيقافها تماماً، لازم توقفها من إعدادات المتصفح/الجهاز.');
     return;
   }
-
   if (Notification.permission === 'denied') {
     alert('الإشعارات متوقفة من إعدادات المتصفح/الجهاز ❌\nلازم تفعّلها من هناك أولاً.');
     return;
   }
-
   const wantsToEnable = confirm('عايز تفعّل الإشعارات لطلبات الصيانة وقطع الغيار؟');
   if (!wantsToEnable) return;
 
@@ -494,7 +487,6 @@ async function toggleNotifications() {
   updateNotifBadge(success);
 }
 
-// ── إرسال إشعار و عرض النتيجة ──
 async function notifyAndToast(title, body) {
   try {
     const result = await sendNotificationToAll(title, body);
@@ -506,44 +498,35 @@ async function notifyAndToast(title, body) {
   }
 }
 
-// ── تثبيت التطبيق (PWA) ──
 let deferredInstallPrompt = null;
 const installBtn = document.getElementById('installBtn');
-
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredInstallPrompt = e;
   installBtn.style.display = 'inline-block';
 });
-
 window.addEventListener('appinstalled', () => {
   deferredInstallPrompt = null;
   installBtn.style.display = 'none';
 });
-
 if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
   installBtn.style.display = 'none';
 }
-
 async function installApp() {
   if (!deferredInstallPrompt) {
-    alert('التثبيت غير متاح دلوقتي من المتصفح ده.\nجرّب من قائمة المتصفح: "إضافة إلى الشاشة الرئيسية" أو "تثبيت التطبيق".');
+    alert('التثبيت غير متاح دلوقتي.\nجرّب إضافة إلى الشاشة الرئيسية.');
     return;
   }
   deferredInstallPrompt.prompt();
   const { outcome } = await deferredInstallPrompt.userChoice;
-  if (outcome === 'accepted') {
-    installBtn.style.display = 'none';
-  }
+  if (outcome === 'accepted') installBtn.style.display = 'none';
   deferredInstallPrompt = null;
 }
 
 let allParts = [];
 
 function startApp() {
-  // تفعيل الإشعارات وتحديث الزر
   initFCM(db, currentUser).then(success => updateNotifBadge(success));
-
   db.collection("parts").orderBy("createdAt", "desc").onSnapshot(snap => {
     allParts = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     render();
@@ -560,6 +543,34 @@ function getDeadline(p) {
   else if (unit === 'hours') deadline.setHours(deadline.getHours() + val);
   else deadline.setDate(deadline.getDate() + val);
   return deadline;
+}
+
+// ── دالة ضغط الصور قبل الرفع ──
+function compressImage(file, maxWidth, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = event => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = error => reject(error);
+    };
+    reader.onerror = error => reject(error);
+  });
 }
 
 async function addPart() {
@@ -581,27 +592,33 @@ async function addPart() {
   try {
     let telegramPhotoUrl = "";
 
-    // 1️⃣ رفع الصورة للتليجرام لو موجودة
+    // 1️⃣ ضغط ورفع الصورة
     if (imageInput.files && imageInput.files.length > 0) {
-      btn.innerText = "📸 جاري رفع الصورة...";
-      const formData = new FormData();
-      formData.append("file", imageInput.files[0]);
+      btn.innerText = "📸 جاري معالجة وضغط الصورة...";
+      const file = imageInput.files[0];
       
+      const imageBase64 = await compressImage(file, IMAGE_MAX_WIDTH, IMAGE_QUALITY);
+
+      btn.innerText = "🚀 جاري رفع الصورة...";
+
       const uploadRes = await fetch('/api/upload-telegram', {
         method: 'POST',
-        body: formData
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: imageBase64 })
       });
 
       if (!uploadRes.ok) throw new Error("فشل رفع الصورة للتليجرام");
       
       const uploadData = await uploadRes.json();
-      telegramPhotoUrl = uploadData.url || uploadData.photoUrl || uploadData.fileId || ""; 
+      if (uploadData.success && uploadData.fileId) {
+        telegramPhotoUrl = `/api/get-telegram-image?fileId=${uploadData.fileId}`;
+      }
     }
 
     btn.innerText = "⏳ جاري تسجيل البيانات...";
     const now = new Date();
     
-    // 2️⃣ حفظ البيانات في Firestore مع رابط الصورة
+    // 2️⃣ حفظ البيانات في Firestore
     await db.collection("parts").add({
       name,
       serial:      serial || "",
@@ -610,7 +627,7 @@ async function addPart() {
       stage:       0,
       reminderValue,
       reminderUnit,
-      photoUrl:    telegramPhotoUrl, // رابط الصورة
+      photoUrl:    telegramPhotoUrl, 
       createdAt:   now,
       createdBy:   currentUser,
       history: [{
@@ -629,18 +646,18 @@ async function addPart() {
     setTimeout(function() {
       notifyAndToast(
         "📤 قطعة غيار خرجت للإصلاح",
-        `${currentUser} ارسل ${name} خاص ب ${machine}${centerText} | تذكير بعد ${reminderValue} ${unitAr}`
+        `${currentUser} أرسل ${name} الخاص بـ ${machine}${centerText} | مدة التذكير المحددة: ${reminderValue} ${unitAr}`
       );
     }, 3500);
 
-    // 3️⃣ تفريغ الحقول بعد النجاح
     ["partName","partSerial","partCenter","partNote"].forEach(id => document.getElementById(id).value = "");
     document.getElementById("reminderValue").value = "7";
     document.getElementById("reminderUnit").value = "days";
-    imageInput.value = ""; // تفريغ حقل الصورة
+    imageInput.value = "";
 
   } catch(e) {
     showToast("خطأ: " + e.message, true);
+    console.error(e);
   }
 
   btn.disabled = false;
@@ -669,7 +686,6 @@ async function updateStage(partId) {
     );
     const noteInput = document.getElementById("inp_note_" + partId);
     if (noteInput) noteInput.value = "";
-    
     showToast("تم التحديث ✅");
   } catch(e) {
     showToast("خطأ: " + e.message, true);
@@ -737,7 +753,6 @@ function renderCard(p) {
       </div>`;
   }).join("");
 
-  // ── بناء HTML لعرض الصورة ──
   const photoHtml = p.photoUrl ? `
     <div style="margin-bottom: 16px; text-align: center;">
       <a href="${p.photoUrl}" target="_blank">
@@ -832,17 +847,12 @@ function showToast(msg, isError = false) {
 window.addEventListener("load", () => {
   const params = new URLSearchParams(window.location.search);
   const partId = params.get("part");
-
   if (!partId) return;
-
   setTimeout(() => {
     const card = document.getElementById("card_" + partId);
     if (card) {
       card.classList.add("expanded");
-      card.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, 1500);
 });
