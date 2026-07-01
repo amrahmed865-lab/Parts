@@ -344,7 +344,7 @@ async function addPart() {
     await db.collection("parts").add({
       name, serial: serial || "", machine, center: center || "",
       stage: 0, reminderValue, reminderUnit, photoUrl: telegramPhotoUrl, 
-      createdAt: now, updatedAt: now, createdBy: currentUser,
+      createdAt: now, updatedAt: now, createdBy: currentUser, renewCount: 0,
       history: [{ stage: 0, date: now.toISOString(), by: currentUser, note: note || "" }]
     });
 
@@ -354,7 +354,7 @@ async function addPart() {
       const centerName = center ? center : "المركز الخارجي";
       notifyAndToast(
         "📤 خروج قطعة للإصلاح", 
-        `قام ${currentUser} بإرسال ${name} خاصة بـ ${machine} للاصلاح لشركة ${centerName}`
+        `قام ${currentUser} بإرسال ${name} خاص بـ ${machine} للاصلاح لشركة ${centerName}`
       ); 
     }, 3500);
 
@@ -384,34 +384,37 @@ async function updateStage(partId) {
       updatedAt: now,
       reminderValue: remVal,
       reminderUnit: remUnit,
+      renewCount: 0, // تصفير عداد التجديد في المرحلة الجديدة
       reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
     await notifyAndToast(
       `${STAGES[newStage].icon} تحديث حالة`,
-      `تحديث : قام ${currentUser} بتحديث حالة ${part.name} الخاصة بـ ${part.machine} لمرحلة ${STAGES[newStage].label}`
+      `تحديث : قام ${currentUser} بتحديث حالة ${part.name} الخاص بـ ${part.machine} لمرحلة ${STAGES[newStage].label}`
     );
     showToast("تم التحديث بنجاح ✅");
   } catch(e) { showToast("خطأ: " + e.message, true); }
 }
 
-// ⚠️ الدالة الجديدة: لتجديد التذكير في نفس المرحلة
 async function renewReminder(partId) {
   const renewVal = parseInt(document.getElementById("renew_val_" + partId).value) || 7;
   const renewUnit = document.getElementById("renew_unit_" + partId).value;
+  const renewNote = document.getElementById("renew_note_" + partId).value.trim();
 
   const part = allParts.find(p => p.id === partId);
   if (!part) return;
 
   const now = new Date();
   const unitAr = renewUnit === 'minutes' ? 'دقيقة' : (renewUnit === 'hours' ? 'ساعة' : 'يوم');
+  
+  // حساب رقم التجديد (المرة الكام)
+  const currentRenewCount = (part.renewCount || 0) + 1;
 
-  // إضافة ملاحظة بسيطة في السجل عشان تبقى عارف إن التذكير اتجدد امتى
   const history = (part.history || []).concat([{
     stage: part.stage,
     date: now.toISOString(),
     by: currentUser,
-    note: `🔄 تم تجديد التذكير لمدة ${renewVal} ${unitAr}`
+    note: `🔄 تجديد متابعة (${renewVal} ${unitAr})${renewNote ? ' - ' + renewNote : ''}`
   }]);
 
   try {
@@ -419,13 +422,14 @@ async function renewReminder(partId) {
       updatedAt: now,
       reminderValue: renewVal,
       reminderUnit: renewUnit,
+      renewCount: currentRenewCount,
       history: history,
-      reminderSentDate: firebase.firestore.FieldValue.delete() // بمسح الإشعار القديم عشان السيرفر يبعت تاني
+      reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
     await notifyAndToast(
       `⏳ تجديد تذكير المتابعة`,
-      `قام ${currentUser} بتجديد تذكير ${part.name} لمدة ${renewVal} ${unitAr} أخرى.`
+      `تم تجديد التذكير بالمتابعة للمرة ${currentRenewCount} للقطعة ${part.name} خاص بـ ${part.machine}`
     );
     showToast("تم تجديد التذكير بنجاح ✅");
   } catch(e) {
@@ -456,18 +460,30 @@ function renderCard(p) {
 
   const isOver = p.stage < 4 && getDeadline(p) && new Date() > getDeadline(p);
 
+  // ⚠️ السجل الزمني (التايم لاين) أصبح يعرض الأوقات تحت بعضها لو في أكتر من حركة أو تجديد في نفس المرحلة
   const timelineHtml = STAGES.map((s, i) => {
-    // إحنا بنفلتر الهيستوري عشان نجيب التغييرات الحقيقية للمرحلة دي
-    const entry = history.find(h => h.stage === i);
+    const entries = history.filter(h => h.stage === i);
     const isActive = p.stage === i, isDone = p.stage > i;
-    let cls = "tl-item" + (isActive ? " active" : "") + (!entry && !isActive ? " pending" : "");
-    const dateStr = entry ? new Date(entry.date).toLocaleString("ar-EG") : "";
+    let cls = "tl-item" + (isActive ? " active" : "") + (entries.length === 0 && !isActive ? " pending" : "");
+    
+    let entriesHtml = "";
+    if (entries.length > 0) {
+       entriesHtml = entries.map(entry => {
+         const dateStr = new Date(entry.date).toLocaleString("ar-EG");
+         return `
+           <div style="margin-top: 6px;">
+             <div class="tl-date">${dateStr}${entry.by ? ' · '+entry.by : ''}</div>
+             ${entry.note ? `<div class="tl-note">${entry.note}</div>` : ''}
+           </div>
+         `;
+       }).join("");
+    }
+
     return `
       <div class="${cls}">
         <div class="tl-dot" style="background:${isDone||isActive ? s.color : 'var(--border)'}"></div>
         <div class="tl-label" style="${isDone||isActive ? `color:${s.color}` : ''}">${s.icon} ${s.label}</div>
-        ${dateStr ? `<div class="tl-date">${dateStr}${entry.by ? ' · '+entry.by : ''}</div>` : ''}
-        ${entry && entry.note ? `<div class="tl-note">${entry.note}</div>` : ''}
+        ${entriesHtml}
       </div>`;
   }).join("");
 
@@ -492,12 +508,12 @@ function renderCard(p) {
 
   const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
   
-  // ⚠️ التعديل هنا: إضافة قسم تجديد التذكير جوه الكارت
+  // ⚠️ واجهة تجديد التذكير مع حقل الملاحظات
   const renewReminderHtml = p.stage < 4 ? `
     <div class="update-section" style="margin-bottom: 12px; border-right: 4px solid var(--accent);">
-      <h4 style="color: var(--text);">⏳ تجديد التذكير (في نفس المرحلة)</h4>
+      <h4 style="color: var(--text);">⏳ تجديد التذكير (لنفس المرحلة)</h4>
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-        <div class="reminder-row" style="flex:1; padding: 4px; background: transparent; border: 1px solid var(--border);">
+        <div class="reminder-row" style="flex:1; padding: 4px; background: transparent; border: 1px solid var(--border); min-width: 150px;">
           <input type="number" id="renew_val_${p.id}" value="${p.reminderValue || 7}" min="1" max="365" style="width:70px; padding:7px;" />
           <select id="renew_unit_${p.id}" style="width:auto; padding:7px;">
             <option value="minutes" ${p.reminderUnit === 'minutes' ? 'selected' : ''}>دقائق</option>
@@ -505,6 +521,9 @@ function renderCard(p) {
             <option value="days" ${(!p.reminderUnit || p.reminderUnit === 'days') ? 'selected' : ''}>أيام</option>
           </select>
         </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap;">
+        <input type="text" id="renew_note_${p.id}" placeholder="ملاحظة المتابعة (اختياري)..." style="flex:1; min-width:180px; background: var(--surface); padding:8px 10px; font-size:13px; border: 1px solid var(--border); border-radius: 6px; color: var(--text);" />
         <button class="btn-update" style="margin-top:0; background: var(--surface2); border: 1px solid var(--border); color: var(--text);" onclick="renewReminder('${p.id}')">تجديد</button>
       </div>
     </div>
