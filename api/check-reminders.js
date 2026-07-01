@@ -14,12 +14,14 @@ if (!getApps().length) {
   });
 }
 
+// ⚠️ تم إضافة "لا تعمل" وترتيب المراحل
 const STAGE_NAMES = [
-  "خرجت للمركز",        // 0
+  "بالخارج للاصلاح",    // 0
   "رجعت من المركز",     // 1
-  "اتجربت في الماكينة", // 2
-  "في الضمان",           // 3
-  "مكتملة"              // 4
+  "لا تعمل",            // 2
+  "اتجربت في الماكينة", // 3
+  "في الضمان",           // 4
+  "مكتملة"              // 5
 ];
 
 function getDeadline(part) {
@@ -59,7 +61,8 @@ export default async function handler(req, res) {
     for (const doc of snap.docs) {  
       const part = { id: doc.id, ...doc.data() };  
 
-      if (part.stage >= 4) continue;  
+      // التذكير يقف لو المرحلة 5 (مكتملة)
+      if (part.stage >= 5) continue;  
 
       const deadline = getDeadline(part);  
 
@@ -99,9 +102,21 @@ export default async function handler(req, res) {
       const stageName = STAGE_NAMES[part.stage] || "مرحلة غير معروفة";
       const centerName = part.center ? part.center : "المركز الخارجي";
 
-      // التعديل: تغيير "خاصة" لـ "خاص"
+      // ⚠️ تحديد الجملة الختامية بناءً على رقم المرحلة
+      let actionText = `برجاء المتابعة`;
+      if (part.stage === 0) {
+        actionText = `برجاء المتابعة مع ${centerName}`;
+      } else if (part.stage === 1) {
+        actionText = `برجاء تجربة الـ ${part.name} بـ ${part.machine}`;
+      } else if (part.stage === 2) {
+        actionText = `برجاء سرعة إرجاع الـ ${part.name} للاصلاح`;
+      } else if (part.stage === 3 || part.stage === 4) {
+        actionText = `برجاء متابعة حالة الـ ${part.name}`;
+      }
+
       const notificationTitle = "⚠️ تنبيه متابعة";
-      const notificationBody = `${part.name} خاص بـ ${part.machine} لسة في مرحلة "${stageName}" بقالها ${val} ${unitAr} ... برجاء المتابعة مع ${centerName}`;
+      // ⚠️ دمج الجملة الختامية في الإشعار
+      const notificationBody = `${part.name} خاص بـ ${part.machine} لسة في مرحلة "${stageName}" بقالها ${val} ${unitAr} ... ${actionText}`;
 
       await messaging.sendEachForMulticast({  
         tokens,  
