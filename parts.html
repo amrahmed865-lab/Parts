@@ -168,7 +168,7 @@ select option { background: var(--surface2); }
   <div class="filter-bar">
     <select id="filterStage" onchange="render()">
       <option value="all">كل المراحل</option>
-      <option value="0">📤 خرجت للمركز</option>
+      <option value="0">📤 بالخارج للاصلاح</option>
       <option value="1">📥 رجعت من المركز</option>
       <option value="2">⚙️ اتجربت في الماكينة</option>
       <option value="3">🛡️ في الضمان</option>
@@ -233,8 +233,9 @@ async function logout() {
   auth.signOut().finally(() => { localStorage.clear(); location.href = "index.html"; });
 }
 
+// التعديل في اسم المرحلة الأولى
 const STAGES = [
-  { label: "خرجت للمركز",        icon: "📤", color: "#6366f1" },
+  { label: "بالخارج للاصلاح",      icon: "📤", color: "#6366f1" },
   { label: "رجعت من المركز",     icon: "📥", color: "#3b82f6" },
   { label: "اتجربت في الماكينة", icon: "⚙️", color: "#a855f7" },
   { label: "في الضمان",           icon: "🛡️", color: "#22c55e" },
@@ -384,7 +385,7 @@ async function updateStage(partId) {
       updatedAt: now,
       reminderValue: remVal,
       reminderUnit: remUnit,
-      renewCount: 0, // تصفير عداد التجديد في المرحلة الجديدة
+      renewCount: 0, 
       reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
@@ -407,8 +408,8 @@ async function renewReminder(partId) {
   const now = new Date();
   const unitAr = renewUnit === 'minutes' ? 'دقيقة' : (renewUnit === 'hours' ? 'ساعة' : 'يوم');
   
-  // حساب رقم التجديد (المرة الكام)
   const currentRenewCount = (part.renewCount || 0) + 1;
+  const centerName = part.center ? part.center : "المركز الخارجي";
 
   const history = (part.history || []).concat([{
     stage: part.stage,
@@ -427,9 +428,10 @@ async function renewReminder(partId) {
       reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
+    // التعديل في صياغة إشعار التجديد
     await notifyAndToast(
-      `⏳ تجديد تذكير المتابعة`,
-      `تم تجديد التذكير بالمتابعة للمرة ${currentRenewCount} للقطعة ${part.name} خاص بـ ${part.machine}`
+      `⏳ تجديد المتابعة`,
+      `تم تجديد المتابعة للمرة ${currentRenewCount} لـ ${part.name} خاص بـ ${part.machine} مع ${centerName}`
     );
     showToast("تم تجديد التذكير بنجاح ✅");
   } catch(e) {
@@ -460,7 +462,6 @@ function renderCard(p) {
 
   const isOver = p.stage < 4 && getDeadline(p) && new Date() > getDeadline(p);
 
-  // ⚠️ السجل الزمني (التايم لاين) أصبح يعرض الأوقات تحت بعضها لو في أكتر من حركة أو تجديد في نفس المرحلة
   const timelineHtml = STAGES.map((s, i) => {
     const entries = history.filter(h => h.stage === i);
     const isActive = p.stage === i, isDone = p.stage > i;
@@ -508,7 +509,6 @@ function renderCard(p) {
 
   const nextOptions = STAGES.map((s, i) => i <= p.stage ? "" : `<option value="${i}">${s.icon} ${s.label}</option>`).join("");
   
-  // ⚠️ واجهة تجديد التذكير مع حقل الملاحظات
   const renewReminderHtml = p.stage < 4 ? `
     <div class="update-section" style="margin-bottom: 12px; border-right: 4px solid var(--accent);">
       <h4 style="color: var(--text);">⏳ تجديد التذكير (لنفس المرحلة)</h4>
