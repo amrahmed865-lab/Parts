@@ -234,14 +234,13 @@ async function logout() {
   auth.signOut().finally(() => { localStorage.clear(); location.href = "index.html"; });
 }
 
-// ⚠️ تم إضافة "لا تعمل" وتغيير ترتيب المراحل
 const STAGES = [
-  { label: "بالخارج للاصلاح",      icon: "📤", color: "#6366f1" }, // 0
-  { label: "رجعت من المركز",     icon: "📥", color: "#3b82f6" }, // 1
-  { label: "لا تعمل",            icon: "❌", color: "#ef4444" }, // 2
-  { label: "اتجربت في الماكينة", icon: "⚙️", color: "#a855f7" }, // 3
-  { label: "في الضمان",           icon: "🛡️", color: "#22c55e" }, // 4
-  { label: "مكتملة",              icon: "✅", color: "#10b981" }, // 5
+  { label: "بالخارج للاصلاح",      icon: "📤", color: "#6366f1" },
+  { label: "رجعت من المركز",     icon: "📥", color: "#3b82f6" },
+  { label: "لا تعمل",            icon: "❌", color: "#ef4444" },
+  { label: "اتجربت في الماكينة", icon: "⚙️", color: "#a855f7" },
+  { label: "في الضمان",           icon: "🛡️", color: "#22c55e" },
+  { label: "مكتملة",              icon: "✅", color: "#10b981" },
 ];
 
 function updateNotifBadge(on) {
@@ -411,7 +410,6 @@ async function renewReminder(partId) {
   const unitAr = renewUnit === 'minutes' ? 'دقيقة' : (renewUnit === 'hours' ? 'ساعة' : 'يوم');
   
   const currentRenewCount = (part.renewCount || 0) + 1;
-  const centerName = part.center ? part.center : "المركز الخارجي";
 
   const history = (part.history || []).concat([{
     stage: part.stage,
@@ -430,9 +428,10 @@ async function renewReminder(partId) {
       reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
+    // ⚠️ التعديل هنا: الإشعار بالصيغة الجديدة اللي طلبتها
     await notifyAndToast(
       `⏳ تجديد المتابعة`,
-      `تم تجديد المتابعة للمرة ${currentRenewCount} للكارتة ${part.name} خاص بـ ${part.machine} مع ${centerName}`
+      `${currentUser} جدد المتابعة للمرة ${currentRenewCount} للكارتة ${part.name} خاص بـ ${part.machine}`
     );
     showToast("تم تجديد التذكير بنجاح ✅");
   } catch(e) {
@@ -461,7 +460,6 @@ function renderCard(p) {
   let timePassedStr = `${daysP} يوم`;
   if (daysP === 0) timePassedStr = hoursP > 0 ? `${hoursP} ساعة` : `${Math.floor(timePassedMs / 60000)} دقيقة`;
 
-  // ⚠️ التذكير شغال لحد المرحلة 5 (مكتملة)
   const isOver = p.stage < 5 && getDeadline(p) && new Date() > getDeadline(p);
 
   const timelineHtml = STAGES.map((s, i) => {
@@ -509,11 +507,10 @@ function renderCard(p) {
     }
   }
 
-  // ⚠️ المنطق الذكي للقائمة المنسدلة: لو القطعة "لا تعمل" (مرحلة 2)، يسمح بإرجاعها لـ "بالخارج للاصلاح" (مرحلة 0)
   const nextOptions = STAGES.map((s, i) => {
-    if (i === p.stage) return ""; // إخفاء المرحلة الحالية
+    if (i === p.stage) return "";
     if (i > p.stage) return `<option value="${i}">${s.icon} ${s.label}</option>`;
-    if (p.stage === 2 && i === 0) return `<option value="${i}">${s.icon} ${s.label}</option>`; // الرجوع من لا تعمل للاصلاح
+    if (p.stage === 2 && i === 0) return `<option value="${i}">${s.icon} ${s.label}</option>`; 
     return "";
   }).join("");
   
@@ -537,7 +534,6 @@ function renderCard(p) {
     </div>
   ` : '';
 
-  // ⚠️ التعديل هنا لظهور عبارة "تعمل بحالة جيدة" في النهاية
   const updateHtml = p.stage < 5 ? `
     ${renewReminderHtml}
     <div class="update-section">
