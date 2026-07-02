@@ -14,7 +14,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-messaging.js"></script>
-<script src="notif-helper.js"></script>
 <script src="app-config.js"></script>
 
 <style>
@@ -73,7 +72,7 @@ label {
   font-weight: 600;
 }
 
-.field { margin-bottom: 14px; }
+.field { margin-bottom: 14px; position: relative; }
 
 input {
   width: 100%;
@@ -89,6 +88,20 @@ input {
 }
 input:focus { border-color: var(--accent); }
 input::placeholder { color: var(--muted); }
+
+/* تنسيق خاص لحقل الباسورد عشان أيقونة العين */
+#password { padding-left: 35px; }
+.toggle-password {
+  position: absolute;
+  left: 10px;
+  top: 28px;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+.toggle-password:hover { opacity: 1; }
 
 button {
   width: 100%;
@@ -109,6 +122,13 @@ button:hover { opacity: .9; }
   margin-top: 6px;
 }
 
+.btn-install {
+  background: var(--success);
+  color: #fff;
+  margin-top: 10px;
+  display: none; /* مخفي لحد ما المتصفح يسمح بالتثبيت */
+}
+
 .btn-test {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -118,7 +138,6 @@ button:hover { opacity: .9; }
   font-size: 12px;
 }
 
-/* تنسيق شاشة التحميل */
 #loading {
   text-align: center;
   color: var(--accent);
@@ -139,15 +158,17 @@ button:hover { opacity: .9; }
 
   <div class="field">
     <label>اسم المستخدم</label>
-    <input id="username" placeholder="Username">
+    <input id="username" placeholder="Username" autocomplete="username">
   </div>
 
   <div class="field">
     <label>كلمة المرور</label>
-    <input id="password" type="password" placeholder="Password">
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+    <span class="toggle-password" id="togglePassword">👁️</span>
   </div>
 
   <button class="btn-login" onclick="login()">دخول</button>
+  <button id="installBtn" class="btn-install">📲 تثبيت التطبيق على الهاتف</button>
   <button class="btn-test" onclick="testLocalNotif()">🧪 اختبار محلي</button>
 </div>
 
@@ -155,7 +176,7 @@ button:hover { opacity: .9; }
 const EMAIL_DOMAIN = '@nahdetmisr.com';
 
 const firebaseConfig = {
-apiKey: "AIzaSyDZ1RAn4fIN6Rqc-b5-BoHiiNFQ9GvZZJA",
+ apiKey: "AIzaSyDZ1RAn4fIN6Rqc-b5-BoHiiNFQ9GvZZJA",
   authDomain: "parts-7e82e.firebaseapp.com",
   projectId: "parts-7e82e",
   storageBucket: "parts-7e82e.firebasestorage.app",
@@ -164,16 +185,31 @@ apiKey: "AIzaSyDZ1RAn4fIN6Rqc-b5-BoHiiNFQ9GvZZJA",
 };
 
 firebase.initializeApp(firebaseConfig);
-const db   = firebase.firestore();
 const auth = firebase.auth();
 
-// تفعيل FCM فور فتح الصفحة
-initFCM(db);
+// 🛡️ دالة تعقيم المدخلات (XSS Protection)
+function escapeHTML(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str.replace(/[&<>'"]/g, function(match) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match];
+  });
+}
 
-// 🚀 الفحص الذكي: لو مسجل دخول هيحوله فوراً، لو لأ هيظهر الفورم
+// 👁️ إظهار وإخفاء الباسورد
+document.getElementById('togglePassword').addEventListener('click', function() {
+  const passInput = document.getElementById('password');
+  if (passInput.type === 'password') {
+    passInput.type = 'text';
+    this.textContent = '🙈';
+  } else {
+    passInput.type = 'password';
+    this.textContent = '👁️';
+  }
+});
+
 auth.onAuthStateChanged(user => {
-  if (user && localStorage.getItem('role')) {
-    location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
+  if (user && localStorage.getItem('user')) {
+    location.href = (typeof REQUESTS_ENABLED !== 'undefined' && REQUESTS_ENABLED) ? 'request.html' : 'parts.html';
   } else {
     document.getElementById("loading").style.display = "none";
     document.getElementById("loginForm").style.display = "block";
@@ -182,8 +218,12 @@ auth.onAuthStateChanged(user => {
 
 async function login() {
   const loginBtn = document.querySelector('.btn-login');
-  const u = document.getElementById('username').value.trim().toLowerCase();
-  const p = document.getElementById('password').value.trim();
+  let u = document.getElementById('username').value.trim().toLowerCase();
+  let p = document.getElementById('password').value.trim();
+
+  // تعقيم المدخلات قبل المعالجة
+  u = escapeHTML(u);
+  p = escapeHTML(p);
 
   if (!u || !p) { alert('اكتب اسم المستخدم وكلمة المرور ❌'); return; }
 
@@ -194,11 +234,11 @@ async function login() {
     const email = u.includes('@') ? u : u + EMAIL_DOMAIN;
     await auth.signInWithEmailAndPassword(email, p);
 
-    // اسم المستخدم هو الجزء اللي قبل @ في الإيميل
+    // تخزين اسم المستخدم بشكل آمن
     const username = email.split('@')[0];
     localStorage.setItem('user', username);
-    localStorage.setItem('role', 'user');
-    location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
+    
+    location.href = (typeof REQUESTS_ENABLED !== 'undefined' && REQUESTS_ENABLED) ? 'request.html' : 'parts.html';
 
   } catch (e) {
     console.error(e);
@@ -220,6 +260,7 @@ document.querySelectorAll('input').forEach(inp =>
 );
 
 async function testLocalNotif() {
+  if (!('serviceWorker' in navigator)) { alert('متصفحك لا يدعم الإشعارات'); return; }
   const reg = await navigator.serviceWorker.getRegistration();
   if (!reg) { alert('Service Worker مش مسجّل'); return; }
   reg.showNotification('🧪 اختبار محلي', {
@@ -229,11 +270,24 @@ async function testLocalNotif() {
   });
 }
 
-// install PWA
+// 📲 كود تثبيت التطبيق (PWA)
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
+  // إظهار زر التثبيت
+  document.getElementById('installBtn').style.display = 'block';
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      document.getElementById('installBtn').style.display = 'none';
+    }
+    deferredPrompt = null;
+  }
 });
 </script>
 </body>
