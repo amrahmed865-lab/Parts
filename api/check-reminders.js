@@ -14,7 +14,6 @@ if (!getApps().length) {
   });
 }
 
-// ⚠️ تم إضافة "لا تعمل" وترتيب المراحل
 const STAGE_NAMES = [
   "بالخارج للاصلاح",    // 0
   "رجعت من المركز",     // 1
@@ -51,7 +50,10 @@ function getDeadline(part) {
 export default async function handler(req, res) {
   try {
     const db = getFirestore();
-    const snap = await db.collection("parts").get();
+    
+    // 🚀 التعديل الجوهري للحماية من استنفاد باقة فايربيز (وفرنا آلاف القراءات)
+    // سحب القطع النشطة فقط (اللي مرحلتها أقل من 5) من قاعدة البيانات مباشرة
+    const snap = await db.collection("parts").where("stage", "<", 5).get();
 
     const now = Date.now();  
     const today = new Date().toISOString().split("T")[0];  
@@ -60,9 +62,6 @@ export default async function handler(req, res) {
 
     for (const doc of snap.docs) {  
       const part = { id: doc.id, ...doc.data() };  
-
-      // التذكير يقف لو المرحلة 5 (مكتملة)
-      if (part.stage >= 5) continue;  
 
       const deadline = getDeadline(part);  
 
@@ -102,7 +101,6 @@ export default async function handler(req, res) {
       const stageName = STAGE_NAMES[part.stage] || "مرحلة غير معروفة";
       const centerName = part.center ? part.center : "المركز الخارجي";
 
-      // ⚠️ تحديد الجملة الختامية بناءً على رقم المرحلة
       let actionText = `برجاء المتابعة`;
       if (part.stage === 0) {
         actionText = `برجاء المتابعة مع ${centerName}`;
@@ -115,7 +113,6 @@ export default async function handler(req, res) {
       }
 
       const notificationTitle = "⚠️ تنبيه متابعة";
-      // ⚠️ دمج الجملة الختامية في الإشعار
       const notificationBody = `${part.name} خاص بـ ${part.machine} لسة في مرحلة "${stageName}" بقالها ${val} ${unitAr} ... ${actionText}`;
 
       await messaging.sendEachForMulticast({  
