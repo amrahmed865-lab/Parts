@@ -290,6 +290,20 @@ function getDeadline(p) {
   return deadline;
 }
 
+// 🛡️ دالة تعقيم المدخلات لمنع ثغرة XSS بحقن الأكواد
+function escapeHTML(str) {
+  if (!str || typeof str !== 'string') return str;
+  return str.replace(/[&<>'"]/g, function(match) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[match];
+  });
+}
+
 function compressImage(file, maxWidth, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -428,7 +442,6 @@ async function renewReminder(partId) {
       reminderSentDate: firebase.firestore.FieldValue.delete() 
     });
     
-    // ⚠️ التعديل هنا: الإشعار بالصيغة الجديدة اللي طلبتها
     await notifyAndToast(
       `⏳ تجديد المتابعة`,
       `${currentUser} جدد المتابعة للمرة ${currentRenewCount} للكارتة ${part.name} خاص بـ ${part.machine}`
@@ -454,6 +467,13 @@ function renderCard(p) {
   const history = p.history || [];
   const created = (p.createdAt && p.createdAt.toDate) ? p.createdAt.toDate() : new Date(p.createdAt);
   
+  // 🛡️ تعقيم وتأمين المتغيرات قبل العرض لحظر ثغرات XSS
+  const safeName = escapeHTML(p.name);
+  const safeSerial = escapeHTML(p.serial);
+  const safeMachine = escapeHTML(p.machine);
+  const safeCenter = escapeHTML(p.center);
+  const safeCreatedBy = escapeHTML(p.createdBy);
+
   const timePassedMs = Date.now() - created.getTime();
   const daysP = Math.floor(timePassedMs / 86400000);
   const hoursP = Math.floor(timePassedMs / 3600000);
@@ -471,10 +491,13 @@ function renderCard(p) {
     if (entries.length > 0) {
        entriesHtml = entries.map(entry => {
          const dateStr = new Date(entry.date).toLocaleString("ar-EG");
+         // 🛡️ تعقيم الاسم والملاحظات المدخلة داخل السجل الزمني
+         const safeBy = escapeHTML(entry.by);
+         const safeNote = escapeHTML(entry.note);
          return `
            <div style="margin-top: 6px;">
-             <div class="tl-date">${dateStr}${entry.by ? ' · '+entry.by : ''}</div>
-             ${entry.note ? `<div class="tl-note">${entry.note}</div>` : ''}
+             <div class="tl-date">${dateStr}${safeBy ? ' · '+safeBy : ''}</div>
+             ${safeNote ? `<div class="tl-note">${safeNote}</div>` : ''}
            </div>
          `;
        }).join("");
@@ -564,12 +587,13 @@ function renderCard(p) {
       <button class="btn-update" onclick="updateStage('${p.id}')">حفّظ التحديث</button>
     </div>` : `<div style="color:var(--success);font-size:13px;font-weight:700;">✅ تعمل بحالة جيدة</div>`;
 
+  // ⚠️ تم تغيير المتغيرات هنا لتقرأ النسخ المعقمة والآمنة (safe)
   return `
     <div class="part-card${isOver ? ' overdue' : ''}" id="card_${p.id}">
       <div class="part-card-header" onclick="toggleCard('${p.id}')">
         <div class="part-stage-dot" style="background:${stage.color}"></div>
-        <div class="part-name">${p.name} ${p.serial ? `<span style="font-size:12px;color:var(--muted)">(${p.serial})</span>` : ''}</div>
-        <span class="part-machine">${p.machine}</span>
+        <div class="part-name">${safeName} ${safeSerial ? `<span style="font-size:12px;color:var(--muted)">(${safeSerial})</span>` : ''}</div>
+        <span class="part-machine">${safeMachine}</span>
         <span class="stage-badge" style="background:${stage.color}22;color:${stage.color}">${stage.icon} ${stage.label}</span>
         ${isOver ? `<span class="overdue-tag">⚠️ تأخرت</span>` : ''}
         <span class="part-days">${timePassedStr}</span>
@@ -577,8 +601,8 @@ function renderCard(p) {
       </div>
       <div class="part-body">
         <div class="part-meta">
-          ${p.center ? `<div class="meta-item"><span class="key">مركز الإصلاح</span><span class="val">🏭 ${p.center}</span></div>` : ''}
-          <div class="meta-item"><span class="key">أضافها</span><span class="val">👤 ${p.createdBy}</span></div>
+          ${safeCenter ? `<div class="meta-item"><span class="key">مركز الإصلاح</span><span class="val">🏭 ${safeCenter}</span></div>` : ''}
+          <div class="meta-item"><span class="key">أضافها</span><span class="val">👤 ${safeCreatedBy}</span></div>
           <div class="meta-item"><span class="key">تاريخ الإخراج</span><span class="val">📅 ${created.toLocaleDateString("ar-EG")}</span></div>
         </div>
         ${photoHtml}
