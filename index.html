@@ -117,12 +117,24 @@ button:hover { opacity: .9; }
   font-weight: 600;
   font-size: 12px;
 }
+
+/* تنسيق شاشة التحميل */
+#loading {
+  text-align: center;
+  color: var(--accent);
+  font-weight: bold;
+  font-size: 18px;
+}
 </style>
 
 </head>
 <body>
 
-<div class="login-card">
+<div id="loading">
+  ⏳ جاري التحقق من الحساب...
+</div>
+
+<div class="login-card" id="loginForm" style="display: none;">
   <div class="login-title">🔧 تسجيل الدخول</div>
 
   <div class="field">
@@ -158,10 +170,13 @@ const auth = firebase.auth();
 // تفعيل FCM فور فتح الصفحة
 initFCM(db);
 
-// لو فيه جلسة فايربيز حقيقية شغالة بالفعل، حوّل مباشرة بدون ما تطلب تسجيل دخول تاني
+// 🚀 الفحص الذكي: لو مسجل دخول هيحوله فوراً، لو لأ هيظهر الفورم
 auth.onAuthStateChanged(user => {
   if (user && localStorage.getItem('role')) {
     location.href = REQUESTS_ENABLED ? 'request.html' : 'parts.html';
+  } else {
+    document.getElementById("loading").style.display = "none";
+    document.getElementById("loginForm").style.display = "block";
   }
 });
 
