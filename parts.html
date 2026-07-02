@@ -96,7 +96,6 @@ select option { background: var(--surface2); }
 .empty { text-align: center; padding: 60px 20px; color: var(--muted); }
 .empty .icon { font-size: 48px; margin-bottom: 12px; }
 .empty p { font-size: 14px; }
-.loading { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--success); color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; z-index: 9999; transition: transform .3s; pointer-events: none; }
 #toast.show  { transform: translateX(-50%) translateY(0); }
 #toast.error { background: var(--danger); }
@@ -107,6 +106,13 @@ select option { background: var(--surface2); }
 .modal-content { max-width: 100%; max-height: 90vh; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); touch-action: pan-x pan-y pinch-zoom; }
 .close-modal { position: absolute; top: 20px; right: 25px; color: #fff; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 10000; line-height: 1; }
 .close-modal:hover { color: var(--accent); }
+
+/* 🚀 تأثير التحميل الوهمي (Skeleton) */
+.skeleton-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 18px; display: flex; align-items: center; gap: 12px; animation: pulse 1.5s infinite; }
+.sk-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--surface2); flex-shrink: 0; }
+.sk-line { height: 16px; background: var(--surface2); border-radius: 6px; flex: 1; }
+.sk-short { width: 70px; height: 16px; background: var(--surface2); border-radius: 6px; }
+@keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 </style>
 </head>
 
@@ -181,7 +187,9 @@ select option { background: var(--surface2); }
   </div>
 
   <div id="partsList" class="parts-list">
-    <div class="loading">⏳ جاري التحميل...</div>
+    <div class="skeleton-card"><div class="sk-dot"></div><div class="sk-line"></div><div class="sk-short"></div></div>
+    <div class="skeleton-card"><div class="sk-dot"></div><div class="sk-line"></div><div class="sk-short"></div></div>
+    <div class="skeleton-card"><div class="sk-dot"></div><div class="sk-line"></div><div class="sk-short"></div></div>
   </div>
 </div>
 
@@ -208,7 +216,14 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-const db   = firebase.firestore();
+const db = firebase.firestore();
+
+// 🚀 تفعيل الكاش للعمل بدون إنترنت وتسريع التحميل الصاروخي
+db.enablePersistence({ synchronizeTabs: true })
+  .catch(function(err) {
+    console.warn("تفعيل الكاش فشل: ", err.code);
+  });
+
 const auth = firebase.auth();
 
 let messaging = null;
@@ -222,8 +237,24 @@ auth.onAuthStateChanged(user => {
   startApp();
 });
 
-function goRequests(e) { e.preventDefault(); location.href = 'request.html'; }
-function goDashboard(e) { e.preventDefault(); location.href = 'dashboard.html'; }
+// 🚀 منع وميض الصفحات لو كانت متوقفة في لوحة التحكم
+function goRequests(e) { 
+  e.preventDefault(); 
+  if (typeof REQUESTS_ENABLED !== 'undefined' && !REQUESTS_ENABLED) { 
+    alert('خدمة طلبات الصيانة متوقفة مؤقتاً ⏸️'); 
+    return; 
+  }
+  location.href = 'request.html'; 
+}
+function goDashboard(e) { 
+  e.preventDefault(); 
+  if (typeof DASHBOARD_ENABLED !== 'undefined' && !DASHBOARD_ENABLED) { 
+    alert('لوحة التحكم متوقفة مؤقتاً ⏸️'); 
+    return; 
+  }
+  location.href = 'dashboard.html'; 
+}
+
 async function logout() {
   try {
     if (messaging) {
@@ -294,13 +325,7 @@ function getDeadline(p) {
 function escapeHTML(str) {
   if (!str || typeof str !== 'string') return str;
   return str.replace(/[&<>'"]/g, function(match) {
-    return {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      "'": '&#39;',
-      '"': '&quot;'
-    }[match];
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[match];
   });
 }
 
@@ -491,7 +516,6 @@ function renderCard(p) {
     if (entries.length > 0) {
        entriesHtml = entries.map(entry => {
          const dateStr = new Date(entry.date).toLocaleString("ar-EG");
-         // 🛡️ تعقيم الاسم والملاحظات المدخلة داخل السجل الزمني
          const safeBy = escapeHTML(entry.by);
          const safeNote = escapeHTML(entry.note);
          return `
@@ -587,7 +611,6 @@ function renderCard(p) {
       <button class="btn-update" onclick="updateStage('${p.id}')">حفّظ التحديث</button>
     </div>` : `<div style="color:var(--success);font-size:13px;font-weight:700;">✅ تعمل بحالة جيدة</div>`;
 
-  // ⚠️ تم تغيير المتغيرات هنا لتقرأ النسخ المعقمة والآمنة (safe)
   return `
     <div class="part-card${isOver ? ' overdue' : ''}" id="card_${p.id}">
       <div class="part-card-header" onclick="toggleCard('${p.id}')">
